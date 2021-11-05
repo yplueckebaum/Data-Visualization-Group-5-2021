@@ -20,7 +20,6 @@ class Preprocessing:
 
     def process_region_data(self):
         print(self.region)
-        self.df.replace("[None]", np.nan, inplace=True)
         # Add new columns:
         self._add_category_string(self.json_path)
         self._add_tagged_column()
@@ -49,6 +48,7 @@ class Preprocessing:
                 tagged.append(True)
         self.df['tagged'] = tagged
         df_print = pd.DataFrame(self.df, columns=['tags', 'tagged'])
+        df_print.iloc[:10]
 
     def _add_region_column(self):
         region_column = []
