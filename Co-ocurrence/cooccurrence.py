@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import tables
 import math
 import csv
 import scipy
@@ -41,7 +40,7 @@ class CoOccurrence:
         if self.co_occurrence_dok is not None and self.tags_occurrence_dict is not None:
             self.co_occurrence_dok.clear()
             self.tags_occurrence_dict.clear()
-        # THIS SETS LEN TO ZERO, you can sett but trying to access the dict gives
+        # THIS SETS LEN TO ZERO
 
         self.df = pd.read_csv(csv_path+"/processed_dataset.csv")
         self.data_len = self.df.shape[0]
@@ -58,12 +57,12 @@ class CoOccurrence:
                                             dtype=self.dtype_co_occurrence)
         # error
         # todo either init again(unnecessary init) or build function that catches the exception(unclean exception
-        #  handling) However tags that do not exist should give an error so this is the current version :P
+        #  handling) However only tags that do not exist should give an error so this is the current version :P
 
         for index, row in self.df.iterrows():
             if index % 10000 == 0:
                 print(f"{int(round(index / self.data_len,2) * 100)}%")
-             if bool(row['tagged']):
+            if bool(row['tagged']):
                 for tag1 in row['tags'].split("|"):
                     self.tags_occurrence_dict[tag1] += 1
                     for tag2 in row['tags'].split("|"):
