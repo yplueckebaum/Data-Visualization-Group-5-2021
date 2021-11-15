@@ -182,12 +182,12 @@ def calculate_perday_numbers_for_each_country_and_write_to_file():
         array_of_number_of_videos_on_the_day = []
 
 #Make a directory "Titledata" in the "Dataset"-folder
-"""try:
+try:
     mkdir("Dataset/Titledata")
     print("Created a  folder called 'Titledata' in the 'Dataset' folder.")
 except OSError as error:
     print("Tried to create 'Titledata' in the 'Dataset' folder, but it was already there :-)")
 
-calculate_total_numbers_for_each_country_and_write_to_file()"""
+calculate_total_numbers_for_each_country_and_write_to_file()
 
 calculate_perday_numbers_for_each_country_and_write_to_file()
