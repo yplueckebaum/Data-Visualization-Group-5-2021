@@ -55,9 +55,6 @@ class CoOccurrence:
         assert np.iinfo(self.dtype_co_occurrence).max > self.data_len
         self.co_occurrence_dok = dok_matrix((len(self.unique_tags), len(self.unique_tags)),
                                             dtype=self.dtype_co_occurrence)
-        # error
-        # todo either init again(unnecessary init) or build function that catches the exception(unclean exception
-        #  handling) However only tags that do not exist should give an error so this is the current version :P
 
         for index, row in self.df.iterrows():
             if index % 10000 == 0:
