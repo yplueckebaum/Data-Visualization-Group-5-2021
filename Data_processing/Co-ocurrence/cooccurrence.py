@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
+import pickle
 
-import matplotlib.pyplot as plt
+import networkx as nx
 import pandas as pd
 import numpy as np
-import math
-import csv
 import scipy
+from community import community_louvain
+from networkx import from_scipy_sparse_matrix
 from scipy.sparse import load_npz
 from scipy.sparse import dok_matrix
 from scipy.sparse import save_npz
 
 
 class CoOccurrence:
-    #dtype must have higher max than
+    # dtype must have higher max than
     def __init__(self):
         self.df = None
         self.data_len = None
@@ -24,30 +25,32 @@ class CoOccurrence:
         self.dtype_co_occurrence = None
         self.tags_occurrence_dict = None
         self.co_occurrence_dok = None
+        self.tag_graph = None
+        self.partition = None
 
-    def _generate_unique_tags(self):
+    def setup(self,csv_path: str = "."):
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv")
+        self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():
             if row['tagged']:
                 for tag in row['tags'].split("|"):
                     unique_tags.append(tag)
-        return list(set(unique_tags))
+        self.unique_tags = list(set(unique_tags))
+        self.number_of_tags = len(self.unique_tags)
+        self.tags_dict = {self.unique_tags[i]: i for i in range(0, len(self.unique_tags))}
+        self.tags_dict_inverse = {v: k for k, v in self.tags_dict.items()}
 
     # generates co-occurrence matrix and tag occurrence vector
     # WILL DELETE CURRENT MATRIX
-    def generate_occurrences(self,dtype_co_occurrence: np.dtype, export: bool = True, export_path: str = ".",csv_path: str = "."):
+    def generate_occurrences(self, dtype_co_occurrence: np.dtype,
+                             csv_path: str = "."):
         if self.co_occurrence_dok is not None and self.tags_occurrence_dict is not None:
             self.co_occurrence_dok.clear()
             self.tags_occurrence_dict.clear()
         # THIS SETS LEN TO ZERO
-
-        self.df = pd.read_csv(csv_path+"/processed_dataset.csv")
-        self.data_len = self.df.shape[0]
-        print(self.data_len)
-        self.unique_tags = self._generate_unique_tags()
-        self.number_of_tags = len(self.unique_tags)
-        self.tags_dict = {self.unique_tags[i]: i for i in range(0, len(self.unique_tags))}
-        self.tags_dict_inverse = {v: k for k, v in self.tags_dict.items()}
+        if not self.df:
+            self.setup(csv_path)
         self.dtype_co_occurrence = dtype_co_occurrence
         self.tags_occurrence_dict = {self.unique_tags[i]: 0 for i in range(0, len(self.unique_tags))}
         assert np.issubdtype(self.dtype_co_occurrence, np.integer)
@@ -57,33 +60,78 @@ class CoOccurrence:
 
         for index, row in self.df.iterrows():
             if index % 10000 == 0:
-                print(f"{int(round(index / self.data_len,2) * 100)}%")
+                print(f"{int(round(index / self.data_len, 2) * 100)}%")
             if bool(row['tagged']):
                 for tag1 in row['tags'].split("|"):
                     self.tags_occurrence_dict[tag1] += 1
                     for tag2 in row['tags'].split("|"):
                         # increase dict entry(matrix is symmetric so half the entries are useless
                         self.co_occurrence_dok[self.tags_dict[tag1], self.tags_dict[tag2]] += 1
-        if export:
-            coo_co_occurrence_matrix = self.co_occurrence_dok.tocoo(copy=True)  # check stackoverflow
-            save_npz(export_path + '/co-occurrence_matrix.npz', coo_co_occurrence_matrix)
-
-            # convert to df and export
-            occurrence_df = pd.DataFrame.from_dict(self.tags_occurrence_dict, orient='index').to_csv(
-                export_path + "/tag_occurrence.csv")
-            assert type(self.co_occurrence_dok) == scipy.sparse.dok.dok_matrix  # todo?
 
         return self.co_occurrence_dok, self.tags_occurrence_dict
 
+    def generate_graph(self):
+        assert self.co_occurrence_dok and self.tags_occurrence_dict
+        self.tag_graph = from_scipy_sparse_matrix(self.co_occurrence_dok, parallel_edges=False,
+                                                  create_using=nx.Graph)
+
+    def generate_partition(self):
+        self.partition = community_louvain.generate_dendrogram(self.tag_graph, weight='weight')
+
     # imports
-    def import_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = "."):
+    def import_occurrences_old(self, co_occurrence_path: str = ".", occurrence_path: str = ".", name=""):
         tags_occurrence_df = pd.read_csv(occurrence_path + "/tag_occurrence.csv", index_col=0)
         self.tags_occurrence_dict = tags_occurrence_df.T.to_dict(orient='records')[0]
-        # todo write tests
 
         coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/co-occurrence_matrix.npz")
         self.co_occurrence_dok = coo_co_occurrence_matrix.todok(
             copy=False)  # dont need to flood memory when loading? todo stackoverflow check
 
-        return  self.co_occurrence_dok,self.tags_occurrence_dict
+        return self.co_occurrence_dok, self.tags_occurrence_dict
 
+    def import_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
+                           co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
+        with open(co_occurrence_name + '.pickle', 'rb') as handle:
+            self.co_occurrence_dok = pickle.load(handle)
+        with open(occurrence_name + '.pickle', 'rb') as handle:
+            self.tags_occurrence_dict = pickle.load(handle)
+
+    def export_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
+                           co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
+        with open(co_occurrence_name + '.pickle', 'rb') as handle:
+            self.partition = pickle.load(handle)
+
+        with open(occurrence_name + '.pickle', 'rb') as handle:
+            self.partition = pickle.load(handle)
+
+    def import_network(self, path=".", name="network", ):
+        with open(path + "/" + name + '.pickle', 'rb') as handle:
+            self.tag_graph = pickle.load(handle)
+
+    def export_network(self, path=".", name="network"):
+        with open(path + "/" + name + '.pickle', 'wb') as handle:
+            pickle.dump(self.tag_graph, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def import_partition(self, path=".", name="partition"):
+        with open(path + "/" + name + '.pickle', 'rb') as handle:
+            self.partition = pickle.load(handle)
+
+    def export_partition(self, path=".", name="partition"):
+        with open(path + "/" + name + '.pickle', 'wb') as handle:
+            pickle.dump(self.partition, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def import_tag_dict(self, path=".", name="partition"):
+        with open(path + "/" + name + '.pickle', 'rb') as handle:
+            self.tags_dict = pickle.load(handle)
+
+    def export_tag_dict(self, path=".", name="tag_dict"):
+        with open(path + "/" + name + '.pickle', 'wb') as handle:
+            pickle.dump(self.tags_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def import_tag_dict_inv(self, path=".", name="tag_dict_inv"):
+        with open(path + "/" + name + '.pickle', 'rb') as handle:
+            self.tags_occurrence_dict = pickle.load(handle)
+
+    def export_tag_dict_inv(self, path=".", name="tag_dict_inv"):
+        with open(path + "/" + name + '.pickle', 'wb') as handle:
+            pickle.dump(self.tags_dict_inverse, handle, protocol=pickle.HIGHEST_PROTOCOL)
