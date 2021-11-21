@@ -6,7 +6,7 @@ import networkx as nx
 import pandas as pd
 import numpy as np
 import scipy
-from community import community_louvain
+import community as community_louvain
 from networkx import from_scipy_sparse_matrix
 from scipy.sparse import load_npz
 from scipy.sparse import dok_matrix
@@ -71,7 +71,6 @@ class CoOccurrence:
         return self.co_occurrence_dok, self.tags_occurrence_dict
 
     def generate_graph(self):
-        assert self.co_occurrence_dok and self.tags_occurrence_dict
         self.tag_graph = from_scipy_sparse_matrix(self.co_occurrence_dok, parallel_edges=False,
                                                   create_using=nx.Graph)
 
@@ -91,18 +90,19 @@ class CoOccurrence:
 
     def import_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
-        with open(co_occurrence_name + '.pickle', 'rb') as handle:
-            self.co_occurrence_dok = pickle.load(handle)
-        with open(occurrence_name + '.pickle', 'rb') as handle:
+        coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/" + co_occurrence_name+".npz")
+        self.co_occurrence_dok = coo_co_occurrence_matrix.todok(
+            copy=False)
+
+        with open(occurrence_path+ "/" +occurrence_name + '.pickle', 'rb') as handle:
             self.tags_occurrence_dict = pickle.load(handle)
 
     def export_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
-        with open(co_occurrence_name + '.pickle', 'rb') as handle:
-            self.partition = pickle.load(handle)
+        save_npz(co_occurrence_path + '/' + co_occurrence_name +".npz", self.co_occurrence_dok.tocoo(copy=True))
 
-        with open(occurrence_name + '.pickle', 'rb') as handle:
-            self.partition = pickle.load(handle)
+        with open(occurrence_path + "/" + occurrence_name + '.pickle', 'wb') as handle:
+            pickle.dump(self.tags_occurrence_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def import_network(self, path=".", name="network", ):
         with open(path + "/" + name + '.pickle', 'rb') as handle:
