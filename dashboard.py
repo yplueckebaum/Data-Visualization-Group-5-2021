@@ -227,7 +227,7 @@ controls = dbc.FormGroup(
             block=True
         ),
         dcc.Dropdown(
-            id="title_drop_down", 
+            id="title_drop_down",
             options=country_list,
             value=['BR'],
             multi=True
