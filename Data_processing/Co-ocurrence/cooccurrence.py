@@ -29,7 +29,7 @@ class CoOccurrence:
         self.partition = None
 
     def setup(self,csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv")
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv",engine="python",error_bad_lines=False)
         self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():
