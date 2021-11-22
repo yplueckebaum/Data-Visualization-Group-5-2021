@@ -13,7 +13,7 @@ class Preprocessing:
 
     def __init__(self,csv_path, json_path):
         self.df = pd.read_csv(csv_path)
-        self.region = json_path.split('/')[1][:2]
+        self.region = json_path.split('/')[2][:2]
         self.csv_path = csv_path
         self.json_path = json_path
 

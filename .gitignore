@@ -128,6 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+Dataset/
+
+processed_dataset.csv
 
 #datasets
 .csv

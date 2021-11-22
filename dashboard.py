@@ -1,81 +1,26 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Nov 19 12:09:25 2021
 
-@author: Tobias
-"""
-
+################################################################################################# IMPORTS
+import datetime
 import dash
 from dash import dcc
 from dash import html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
-
+from collections import Counter
 import plotly.express as px
 import pandas as pd
 import numpy as np
 from os.path import exists
 
-## Align what colours to use and correct scale
-available_colors = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6",
-                    "#6a3d9a", "#ffff99", "#b15928"]
+import _pickle as cPickle
 
-processed_csv_path = "processed_dataset.csv"
+from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
-
-def prepareData(processed_csv_path):
-    df = pd.read_csv(processed_csv_path)
-    df.publishedAt = pd.to_datetime(df.publishedAt)
-    df.trending_date = pd.to_datetime(df.trending_date)
-
-    df['Years'] = df['trending_date'].dt.strftime('%Y')
-    df['Months'] = df['trending_date'].dt.strftime('%Y-%m')
-    df['Days'] = df['trending_date'].dt.date
-
-    return df
-
-
-def extractFilterOptions(df):
-    available_regions = df['region'].unique()
-    available_categories = df['category_text'].unique()
-
-    return available_regions, available_categories
-
-
-df = prepareData(processed_csv_path)
-available_regions, available_categories = extractFilterOptions(df)
-
-# the style arguments for the sidebar.
-SIDEBAR_STYLE = {
-    'position': 'fixed',
-    'top': 0,
-    'left': 0,
-    'bottom': 0,
-    'width': '20%',
-    'padding': '20px 10px',
-    'background-color': '#f8f9fa'
-}
-
-# the style arguments for the main content page.
-CONTENT_STYLE = {
-    'margin-left': '25%',
-    'margin-right': '5%',
-    'padding': '20px 10p'
-}
-
-TEXT_STYLE = {
-    'textAlign': 'center',
-    'color': '#191970'
-}
-
-CARD_TEXT_STYLE = {
-    'textAlign': 'center',
-    'color': '#0074D9'
-}
-
-processed_csv_path = "processed_dataset.csv"
-
+################################################################################################# DATA STRUCTURES
+print("-------------------> Loading data structures")
+start = datetime.datetime.now()
 country_codes = ['BR', 'CA', 'DE', 'FR', 'GB', 'IN', 'JP', 'KR', 'MX', 'RU', 'US']
 
 category_ids_to_names_dict = {1: "Film & Animation",
@@ -111,6 +56,7 @@ category_ids_to_names_dict = {1: "Film & Animation",
 43: "Shows",
 44: "Trailers"}
 
+
 category_names_to_ids_dict = {"Film & Animation":1,
 "Autos & Vehicles":2,
 "Music":10,
@@ -144,70 +90,123 @@ category_names_to_ids_dict = {"Film & Animation":1,
 "Shows":43,
 "Trailers":44}
 
-dates_from_processed_dataset = pd.read_csv("processed_dataset.csv", usecols=[7])
-dates_from_processed_dataset.sort_values('trending_date')
-unique_dates = dates_from_processed_dataset.trending_date.unique()
-unique_dates = np.array(unique_dates)
-no_of_unique_dates = len(unique_dates)
+end = datetime.datetime.now()
+print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds to load the data structures.")
 
-country_list = []
-for i in country_codes:
-    country_list.append({'label': i, 'value': i})
+################################################################################################# STYLING
+print("-------------------> Loading styling")
+start = datetime.datetime.now()
+available_colors = ["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6",
+                    "#6a3d9a", "#ffff99", "#b15928"]
 
-categories_list = []
-for (key, value) in category_ids_to_names_dict.items():
-    categories_list.append({'label': value, 'value': value})
+# the style arguments for the sidebar.
+SIDEBAR_STYLE = {
+    'position': 'fixed',
+    'top': 0,
+    'left': 0,
+    'bottom': 0,
+    'width': '20%',
+    'padding': '20px 10px',
+    'background-color': '#f8f9fa'
+}
 
-current_data_set = "Dataset/Titledata/BR/BR_title_totals.csv"
-df_for_title_chart  = pd.read_csv(current_data_set)
+# the style arguments for the main content page.
+CONTENT_STYLE = {
+    'margin-left': '25%',
+    'margin-right': '5%',
+    'padding': '20px 10p'
+}
 
-x = ['Did use () or []', 'Did use CAPS', 'Did use emojis']
+TEXT_STYLE = {
+    'textAlign': 'center',
+    'color': '#191970'
+}
 
+CARD_TEXT_STYLE = {
+    'textAlign': 'center',
+    'color': '#0074D9'
+}
+
+processed_csv_path = "processed_dataset.csv"
+
+end = datetime.datetime.now()
+print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds to load the styling.")
+
+################################################################################################# LOAD DATASET AND SET UP NECESSARY VARIABLES
+already_loaded_dataset_and_set_up_variables = False
+if not already_loaded_dataset_and_set_up_variables:
+    print("-------------------> Loading dataset and setting up necessary variables")
+    start = datetime.datetime.now()
+    def prepareData(processed_csv_path):
+        print("prepareData has been called")
+        df = pd.read_csv(processed_csv_path)
+        df.publishedAt = pd.to_datetime(df.publishedAt)
+        df.trending_date = pd.to_datetime(df.trending_date)
+
+        df['Years'] = df['trending_date'].dt.strftime('%Y')
+        df['Months'] = df['trending_date'].dt.strftime('%Y-%m')
+        df['Days'] = df['trending_date'].dt.date
+
+        return df
+
+
+    def extractFilterOptions(df):
+        print("extractFilterOptions has been called")
+        available_regions = df['region'].unique()
+        available_categories = df['category_text'].unique()
+
+        return available_regions, available_categories
+
+    df = prepareData(processed_csv_path)
+    available_regions, available_categories = extractFilterOptions(df)
+
+    print("Setting up unique dates and lists for dropdowns")
+    dates_from_processed_dataset_test = df["trending_date"]
+    unique_dates = dates_from_processed_dataset_test.unique()
+    unique_dates = unique_dates.astype(str)
+    unique_dates_test = np.array(unique_dates)
+    no_of_unique_dates = len(unique_dates)
+
+    country_list = []
+    for i in country_codes:
+        country_list.append({'label': i, 'value': i})
+
+    categories_list = []
+    for (key, value) in category_ids_to_names_dict.items():
+        categories_list.append({'label': value, 'value': value})
+
+    print("Loading cooccurrence")
+    cooccurrence = CoOccurrence()
+    cooccurrence.setup()
+    #cooccurrence.import_occurrences()
+
+    with open("./occurrence.pickle", 'rb') as handle:
+        cooccurrence.tags_occurrence_dict = cPickle.load(handle)
+    occurrence_df = pd.DataFrame.from_dict(cooccurrence.tags_occurrence_dict, orient='index')
+
+
+    end = datetime.datetime.now()
+    print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds load dataset and set up necessary variables.")
+
+################################################################################################# DASHBOARD SET UP
+print("-------------------> Setting up dashboard")
+start = datetime.datetime.now()
 controls = dbc.FormGroup(
     [
         html.P('Regions', style={
             'textAlign': 'center'
         }),
         dcc.Dropdown(
-            id='dropdown',
-            options=[{
-                'label': 'Value One',
-                'value': 'value1'
-            }, {
-                'label': 'Value Two',
-                'value': 'value2'
-            },
-                {
-                    'label': 'Value Three',
-                    'value': 'value3'
-                }
-            ],
-            value=['value1'],  # default value
+            id="title_drop_down",
+            options=country_list,
+            value=['BR'],
             multi=True
         ),
         html.P('Categories', style={
             'textAlign': 'center'
         }),
-        dbc.Card([dbc.Checklist(
-            id='check_list',
-            options=[{
-                'label': 'Value One',
-                'value': 'value1'
-            },
-                {
-                    'label': 'Value Two',
-                    'value': 'value2'
-                },
-                {
-                    'label': 'Value Three',
-                    'value': 'value3'
-                }
-            ],
-            value=['value1', 'value2'],
-            inline=True
-        )]),
-        html.Br(),
-        html.P('Radio Items', style={
+        dcc.Dropdown(id="categories_drop_down", options=categories_list, value=["Music", "Gaming"], multi=True),
+        html.P('Time scale', style={
             'textAlign': 'center'
         }),
         dbc.Card([dbc.RadioItems(
@@ -217,22 +216,7 @@ controls = dbc.FormGroup(
             style={
                 'margin': 'auto'
             }
-        )]),
-        html.Br(),
-        dbc.Button(
-            id='submit_button',
-            n_clicks=0,
-            children='Submit',
-            color='primary',
-            block=True
-        ),
-        dcc.Dropdown(
-            id="title_drop_down",
-            options=country_list,
-            value=['BR'],
-            multi=True
-        ),
-        dcc.Dropdown(id="categories_drop_down", options=categories_list, value=["Music","Gaming"], multi=True),
+        )])
     ]
 )
 
@@ -261,7 +245,7 @@ content_first_row = dbc.Row(
                 pushable=1), html.Div(id='my-output', style={"text-align": "center", "display": "inline-block", "width":"100%"})]), md=4
         ),
         dbc.Col(
-            html.Div(), md=4
+            dcc.Graph(id='tags_chart'), md=4
         )
     ]
 )
@@ -299,159 +283,12 @@ content = html.Div(
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div([sidebar, content])
 
-
-""""
-@app.callback(
-    Output('graph_1', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_1(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)
-    fig = {
-        'data': [{
-            'x': [1, 2, 3],
-            'y': [3, 4, 5]
-        }]
-    }
-    return fig
+end = datetime.datetime.now()
+print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds to set up the dashboard.")
 
 
-@app.callback(
-    Output('graph_2', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_2(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)
-    fig = {
-        'data': [{
-            'x': [1, 2, 3],
-            'y': [3, 4, 5],
-            'type': 'bar'
-        }]
-    }
-    return fig
-
-
-@app.callback(
-    Output('graph_3', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_3(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)
-    df = px.data.iris()
-    fig = px.density_contour(df, x='sepal_width', y='sepal_length')
-    return fig
-
-
-@app.callback(
-    Output('graph_4', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_4(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)  # Sample data and figure
-    df = px.data.gapminder().query('year==2007')
-    fig = px.scatter_geo(df, locations='iso_alpha', color='continent',
-                         hover_name='country', size='pop', projection='natural earth')
-    fig.update_layout({
-        'height': 600
-    })
-    return fig
-
-
-@app.callback(
-    Output('graph_5', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_5(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)  # Sample data and figure
-    df = px.data.iris()
-    fig = px.scatter(df, x='sepal_width', y='sepal_length')
-    return fig
-
-
-@app.callback(
-    Output('graph_6', 'figure'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_graph_6(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)  # Sample data and figure
-    df = px.data.tips()
-    fig = px.bar(df, x='total_bill', y='day', orientation='h')
-    return fig
-
-
-@app.callback(
-    Output('card_title_1', 'children'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_card_title_1(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)  # Sample data and figure
-    return 'Card Tile 1 change by call back'
-
-
-@app.callback(
-    Output('card_text_1', 'children'),
-    [Input('submit_button', 'n_clicks')],
-    [State('dropdown', 'value'), State('range_slider', 'value'), State('check_list', 'value'),
-     State('radio_items', 'value')
-     ])
-def update_card_text_1(n_clicks, dropdown_value, range_slider_value, check_list_value, radio_items_value):
-    print(n_clicks)
-    print(dropdown_value)
-    print(range_slider_value)
-    print(check_list_value)
-    print(radio_items_value)  # Sample data and figure
-    return 'Card text change by call back'
-"""
-
-
-################## Stuff for title-chart
-def update_data(input_countries, input_categories, slider_interval):
-    #Should not use global, ideally - But only if multi-user session according to the tutorials (we just making a prototype, so I think it's okay?)
-    global current_data_set, df_test, total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis
-
+################################################################################################# Helper method for title chart
+def update_data_for_titlechart(input_countries, input_categories, slider_interval):
     total_titles = 0
     did_use_par_or_bracks = 0
     did_use_caps = 0
@@ -464,19 +301,19 @@ def update_data(input_countries, input_categories, slider_interval):
         if len(input_categories) == 0:
             if slider_interval[0] == 0 and slider_interval[1] == no_of_unique_dates:
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_title_totals.csv"
-                df_test  = pd.read_csv(current_data_set)
+                df_for_titlechart = pd.read_csv(current_data_set)
 
-                total_titles += np.array(df_test.total_number_of_titles)[0]
-                did_use_par_or_bracks += np.array(df_test.number_of_titles_with_parenthesis_or_squarebracket_usage)[0]
-                did_use_caps += np.array(df_test.number_of_titles_with_caps_usage)[0]
-                did_use_emojis += np.array(df_test.number_of_titles_with_emoji_usage)[0]
+                total_titles += np.array(df_for_titlechart.total_number_of_titles)[0]
+                did_use_par_or_bracks += np.array(df_for_titlechart.number_of_titles_with_parenthesis_or_squarebracket_usage)[0]
+                did_use_caps += np.array(df_for_titlechart.number_of_titles_with_caps_usage)[0]
+                did_use_emojis += np.array(df_for_titlechart.number_of_titles_with_emoji_usage)[0]
             else:
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_allcategories_totals_per_day.csv"
-                df_test  = pd.read_csv(current_data_set)
-                mask = (df_test['date'] >= unique_dates[slider_interval[0]]) & (df_test['date'] <= unique_dates[slider_interval[1]-1])
-                df_test = df_test.loc[mask]
+                df_for_titlechart  = pd.read_csv(current_data_set)
+                mask = (df_for_titlechart['date'] >= unique_dates[slider_interval[0]]) & (df_for_titlechart['date'] <= unique_dates[slider_interval[1] - 1])
+                df_for_titlechart = df_for_titlechart.loc[mask]
 
-                for index, row in df_test.iterrows():
+                for index, row in df_for_titlechart.iterrows():
                     total_titles += row['total_number_of_titles']
                     did_use_par_or_bracks += row['number_of_titles_with_parenthesis_or_squarebracket_usage']
                     did_use_caps += row['number_of_titles_with_caps_usage']
@@ -487,14 +324,14 @@ def update_data(input_countries, input_categories, slider_interval):
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_category" + str(category_id) + "_totals_per_day.csv"
                 file_exists = exists(current_data_set)
                 if file_exists:
-                    df_test  = pd.read_csv(current_data_set)
+                    df_for_titlechart  = pd.read_csv(current_data_set)
                 else:
                     continue
 
-                mask = (df_test['date'] >= unique_dates[slider_interval[0]]) & (df_test['date'] <= unique_dates[slider_interval[1]-1])
-                df_test = df_test.loc[mask]
+                mask = (df_for_titlechart['date'] >= unique_dates[slider_interval[0]]) & (df_for_titlechart['date'] <= unique_dates[slider_interval[1] - 1])
+                df_for_titlechart = df_for_titlechart.loc[mask]
 
-                for index, row in df_test.iterrows():
+                for index, row in df_for_titlechart.iterrows():
                     total_titles += row['total_number_of_titles']
                     did_use_par_or_bracks += row['number_of_titles_with_parenthesis_or_squarebracket_usage']
                     did_use_caps += row['number_of_titles_with_caps_usage']
@@ -507,25 +344,51 @@ def update_data(input_countries, input_categories, slider_interval):
     did_not_use_caps = 100 - did_use_caps if total_titles > 0 else 0
     did_not_use_emojis = 100 - did_use_emojis if total_titles > 0 else 0
 
+    return total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis
+
+
+################################################################################################# Helper method for tags chart
+def top_n_tags(cooccurrence, region,category,startdate ,enddate,n = 10):
+
+    values = cooccurrence.df.loc[(cooccurrence.df["region"] == region) & (cooccurrence.df["tagged"]) & (cooccurrence.df["category_text"] == category) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate)]["tags"]
+    cooccurrence.tags_occurrence_dict.clear()
+    cooccurrence.tags_occurrence_dict = {cooccurrence.unique_tags[i]: 0 for i in range(0, len(cooccurrence.unique_tags))}
+    for tags in values:
+        for tag in tags.split("|"):
+            cooccurrence.tags_occurrence_dict[tag] += 1
+    return dict(Counter(cooccurrence.tags_occurrence_dict).most_common(n))
+
+
+
+################################################################################################# Callbacks
 @app.callback(
     Output(component_id='title_bar_chart', component_property='figure'),
     Input("title_drop_down", "value"),
     Input("categories_drop_down", "value"),
     Input("dataslider", "value"))
 def update_output_div(input_countries, input_categories, slider_interval):
-    update_data(input_countries, input_categories, slider_interval)
+    print("Callback for title chart has been called")
+    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(input_countries, input_categories, slider_interval)
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(name="Yes", x=x, y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
-    fig.add_trace(go.Bar(name="No", x=x, y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis], marker_color='rgb(254, 178, 76)'))
+    fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'], y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
+    fig.add_trace(go.Bar(name="No", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'], y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis], marker_color='rgb(254, 178, 76)'))
 
-    fig.update_layout(title_text='Titles')
     fig.update_layout(barmode='stack')
     fig.update_layout(yaxis_range=(0, 100))
     fig.update_layout(transition={
                 'duration': 500,
                 'easing': 'cubic-in-out'
         })
+    fig.update_yaxes(
+        title_text="Number of videos(%)", range=(0, 100),
+        title_font=dict(size=15, family='Verdana', color='black'),
+        tickfont=dict(family='Calibri', color='black', size=12))
+    fig.update_layout(
+        title="Titles",
+        title_font_size=20, legend_font_size=10,
+        showlegend=True,
+        yaxis=dict(type='linear', ticksuffix='%'))
 
     return fig
 
@@ -533,8 +396,8 @@ def update_output_div(input_countries, input_categories, slider_interval):
     Output('my-output', component_property='children'),
     Input('dataslider', 'value'))
 def settext(slider_interval):
-    return unique_dates[slider_interval[0]] + " - " + unique_dates[slider_interval[1]-1]
-
+    print("Callback for range slider has been called")
+    return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1]-1][0:10]
 
 @app.callback(
     dash.dependencies.Output('stacked-area-chart', 'figure'),
@@ -542,55 +405,101 @@ def settext(slider_interval):
     Input('filter_time', 'value'),
      dash.dependencies.Input('categories_drop_down', 'value')])
 def update_graph(regionInput, timeInput, categoryInput):
+    print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
 
-    selected_region = regionInput
+    selected_regions = regionInput
     selected_time_format = timeInput
     selected_categories = categoryInput
 
     fig = go.Figure()
-    color_count = 0
-    for categories in selected_categories:
+    if selected_regions:
 
-        videos_that_match = df.loc[(df.category_text==categories) & (df.region == selected_region[0]), selected_time_format]
-        videos_that_match_count = videos_that_match.value_counts()
-        videos_that_match_count = videos_that_match_count.sort_index()
+        color_count = 0
+        for categories in selected_categories:
+            region_count = 0
+            for region in selected_regions:
+                videos_that_match = df.loc[(df.category_text == categories) & (df.region == region), selected_time_format]
+                if (region_count == 0):
+                    videos_that_match_count = videos_that_match.value_counts()
+                    region_count += 1;
+                else:
+                    videos_that_match_count += videos_that_match.value_counts()
 
-        x = videos_that_match_count.index
-        y = videos_that_match_count.values
+                videos_that_match_count = videos_that_match_count.sort_index()
 
-        color_count += 1
-        fig.add_trace(go.Scatter(
-            x = x,
-            y = y,
-            mode='lines',
-            name=categories,
-            line=dict(width=0.5, color=available_colors[color_count-1]),
-            stackgroup='one', # define stack group
-            groupnorm='percent' # sets the normalization for the sum of the stackgroup
-        ))
+            x = videos_that_match_count.index
+            y = videos_that_match_count.values
+
+            color_count += 1
+            fig.add_trace(go.Scatter(
+                x = x,
+                y = y,
+                mode='lines',
+                name=categories,
+                line=dict(width=0.5, color=available_colors[color_count-1]),
+                stackgroup='one', # define stack group
+                groupnorm='percent' # sets the normalization for the sum of the stackgroup
+            ))
 
 
-    fig.update_layout(
-     title = " trending YouTube data",
-     title_font_size = 20, legend_font_size = 10,
-     showlegend=True,
-     yaxis=dict(type='linear',ticksuffix='%'))
+        fig.update_layout(
+         #title = "Trending YouTube data for " + str(selected_regions) + " in " + str(selected_categories),
+         title="Categories",
+         title_font_size = 20, legend_font_size = 10,
+         showlegend=True,
+         yaxis=dict(type='linear',ticksuffix='%'))
 
-    fig.update_xaxes(
-         title_text = 'Date',
-         title_font=dict(size=15, family='Verdana', color='black'),
-         tickfont=dict(family='Calibri', color='black', size=12))
+        fig.update_xaxes(
+             title_text = 'Date',
+             title_font=dict(size=15, family='Verdana', color='black'),
+             tickfont=dict(family='Calibri', color='black', size=12))
 
-    fig.update_yaxes(
-         title_text = "Number of videos(%)", range = (0,100),
-         title_font=dict(size=15, family='Verdana', color='black'),
-         tickfont=dict(family='Calibri', color='black', size=12))
+        fig.update_yaxes(
+             title_text = "Number of videos(%)", range = (0,100),
+             title_font=dict(size=15, family='Verdana', color='black'),
+             tickfont=dict(family='Calibri', color='black', size=12))
 
 
     return fig
 
 
+@app.callback(
+    Output(component_id='tags_chart', component_property='figure'),
+    Input("title_drop_down", "value"),
+    Input("categories_drop_down", "value"),
+    Input("dataslider", "value"))
+def update_tag_chart(input_countries, input_categories, slider_interval):
+    #unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
+    print("Callback for tag chart has been called")
+    top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, region="BR", category="Gaming",
+                                 startdate=pd.to_datetime("2020-08-12T00:00:00Z"),
+                                 enddate=pd.to_datetime("2021-10-04T00:00:00Z"))
 
+    fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker_color='rgb(44, 127, 184)'))
+
+    fig.update_layout(
+         title = "Tags",
+         title_font_size = 20, legend_font_size = 10,
+         showlegend=True,
+         yaxis=dict(type='linear'))
+
+    fig.update_xaxes(
+         title_text = 'Tags',
+         title_font=dict(size=15, family='Verdana', color='black'),
+         tickfont=dict(family='Calibri', color='black', size=12))
+
+    fig.update_yaxes(
+         title_text = "Number of videos",
+         title_font=dict(size=15, family='Verdana', color='black'),
+         tickfont=dict(family='Calibri', color='black', size=12))
+
+    fig.update_layout(showlegend=False)
+
+    return fig
+
+
+print("-------------------> The application is running")
+already_loaded_dataset_and_set_up_variables = True
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=True, dev_tools_hot_reload=False, use_reloader=False)
