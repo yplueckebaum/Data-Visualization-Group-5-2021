@@ -28,8 +28,8 @@ class CoOccurrence:
         self.tag_graph = None
         self.partition = None
 
-    def setup(self,csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv",engine="python",error_bad_lines=False)
+    def setup(self, csv_path: str = "."):
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python", error_bad_lines=False)
         self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():
@@ -90,16 +90,16 @@ class CoOccurrence:
 
     def import_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
-        coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/" + co_occurrence_name+".npz")
+        coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/" + co_occurrence_name + ".npz")
         self.co_occurrence_dok = coo_co_occurrence_matrix.todok(
             copy=False)
 
-        with open(occurrence_path+ "/" +occurrence_name + '.pickle', 'rb') as handle:
+        with open(occurrence_path + "/" + occurrence_name + '.pickle', 'rb') as handle:
             self.tags_occurrence_dict = pickle.load(handle)
 
     def export_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
-        save_npz(co_occurrence_path + '/' + co_occurrence_name +".npz", self.co_occurrence_dok.tocoo(copy=True))
+        save_npz(co_occurrence_path + '/' + co_occurrence_name + ".npz", self.co_occurrence_dok.tocoo(copy=True))
 
         with open(occurrence_path + "/" + occurrence_name + '.pickle', 'wb') as handle:
             pickle.dump(self.tags_occurrence_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -135,3 +135,11 @@ class CoOccurrence:
     def export_tag_dict_inv(self, path=".", name="tag_dict_inv"):
         with open(path + "/" + name + '.pickle', 'wb') as handle:
             pickle.dump(self.tags_dict_inverse, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def import_tag_graph(self, path=".", name="tag_graph"):
+        with open(path + "/" + name + '.pickle', 'rb') as handle:
+            self.tag_graph = pickle.load(handle)
+
+    def export_tag_graph(self, path=".", name="tag_graph"):
+        with open(path + "/" + name + '.pickle', 'wb') as handle:
+            pickle.dump(self.tag_graph, handle, protocol=pickle.HIGHEST_PROTOCOL)

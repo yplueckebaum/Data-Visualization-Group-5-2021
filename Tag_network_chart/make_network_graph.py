@@ -5,16 +5,19 @@ import matplotlib.pyplot as plt
 
 
 # todo: This should support figure import/export using pickle!
-def make_network_fig():
+def make_network_fig(graph):
     # import graph
-    G = None
+    G = nx.random_geometric_graph(200, 0.125)
     # decide whether or not to plot data points or clusters
-
+    layout = nx.drawing.layout.kamada_kawai_layout(G)
     # in case of edges generate x and y of edges
     # None acts as seperator
+    edge_x = []
+    edge_y = []
+
     for edge in G.edges():
-        x0, y0 = G.nodes[edge[0]]['pos']
-        x1, y1 = G.nodes[edge[1]]['pos']
+        x0, y0 = layout[edge[0]]
+        x1, y1 = layout[edge[1]]
         edge_x.append(x0)
         edge_x.append(x1)
         edge_x.append(None)
@@ -31,14 +34,31 @@ def make_network_fig():
     node_x = []
     node_y = []
     for node in G.nodes():
-        x, y = G.nodes[node]['pos']
+        x, y = layout[node]
         node_x.append(x)
         node_y.append(y)
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
-        mode='lines',
-        hoverinfo='text')
+        mode='markers',
+        hoverinfo='text',
+        marker=dict(
+            showscale=True,
+            # colorscale options
+            # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+            # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+            # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+            colorscale='YlGnBu',
+            reversescale=True,
+            color=[],
+            size=10,
+            colorbar=dict(
+                thickness=15,
+                title='Node Connections',
+                xanchor='left',
+                titleside='right'
+            ),
+            line_width=2))
 
     node_adjacencies = []
     node_text = []
