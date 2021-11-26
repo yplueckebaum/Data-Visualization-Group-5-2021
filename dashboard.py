@@ -155,7 +155,8 @@ if not already_loaded_dataset_and_set_up_variables:
     def extractFilterOptions(df):
         print("extractFilterOptions has been called")
         available_regions = df['region'].unique()
-        available_categories = df['category_text'].unique()
+        available_categories = df.loc[df['category_text'] != "0"]
+        available_categories = available_categories['category_text'].unique()
 
         return available_regions, available_categories
 
