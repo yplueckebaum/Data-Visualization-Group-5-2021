@@ -32,6 +32,9 @@ app.layout = html.Div([
     dcc.Graph(
         #id='tag_network_graph'
         figure=make_network_fig()
+    ),
+    dcc.Markdown(
+        html.Pre(id="click_data")
     )
 ])
 

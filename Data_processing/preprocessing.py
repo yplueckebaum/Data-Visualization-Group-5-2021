@@ -46,8 +46,6 @@ class Preprocessing:
             else:
                 tagged.append(True)
         self.df['tagged'] = tagged
-        df_print = pd.DataFrame(self.df, columns=['tags', 'tagged'])
-        df_print.iloc[:10]
 
     def _add_region_column(self):
         region_column = []

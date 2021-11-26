@@ -30,7 +30,7 @@ class CoOccurrence:
         self.occurrence_max = None
 
     def setup(self, csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python", error_bad_lines=False).iloc[:100] #todo dataset is cut for processing reasons
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python", error_bad_lines=False).iloc[100000:100500] #todo dataset is cut for processing reasons
         self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():

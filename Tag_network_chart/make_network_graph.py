@@ -12,14 +12,15 @@ def make_network_fig(graph,cooccurrence : CoOccurrence,edge_weight_min = 5):
     test = cooccurrence.normalize_by_occurrence()
     G = graph#nx.random_geometric_graph(200, 0.125)
     # decide whether or not to plot data points or clusters
-    layout = nx.drawing.layout.kamada_kawai_layout(G,weight="weight")
+    layout = nx.drawing.nx_agraph.pygraphviz_layout(G,prog="sfdp")
+    print("test")
     # in case of edges generate x and y of edges
     # None acts as seperator
     edge_x = []
     edge_y = []
 
     for edge in G.edges.data("weight"):
-        if True: #cooccurrence.tag_graph.get_edge_data(*edge)["weight"] >= edge_weight_min:
+        if cooccurrence.tag_graph.get_edge_data(*edge)["weight"] >= edge_weight_min:
             x0, y0 = layout[edge[0]]
             x1, y1 = layout[edge[1]]
             edge_x.append(x0)
@@ -31,7 +32,7 @@ def make_network_fig(graph,cooccurrence : CoOccurrence,edge_weight_min = 5):
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
         line=dict(width=0.5, color='#888'),
-        hoverinfo='none',
+        hoverinfo='text',
         mode='lines')
 
     # safe x and y of nodes
@@ -71,7 +72,7 @@ def make_network_fig(graph,cooccurrence : CoOccurrence,edge_weight_min = 5):
     node_text = []
     for node, adjacencies in enumerate(G.adjacency()):
         node_adjacencies.append(len(adjacencies[1]))
-        node_text.append('tag name:' + 'todo: get tag from node func')  # todo: func to get tag name from node(edge?)
+        node_text.append(cooccurrence.tags_dict_inverse[node])
 
     node_trace.marker.color = node_adjacencies
     node_trace.text = node_text
