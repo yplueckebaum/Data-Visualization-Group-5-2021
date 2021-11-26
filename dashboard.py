@@ -18,6 +18,8 @@ import _pickle as cPickle
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
+load_cooccurence = False
+
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
 start = datetime.datetime.now()
@@ -172,17 +174,18 @@ if not already_loaded_dataset_and_set_up_variables:
         country_list.append({'label': i, 'value': i})
 
     categories_list = []
-    for (key, value) in category_ids_to_names_dict.items():
-        categories_list.append({'label': value, 'value': value})
+    for i in available_categories:
+        categories_list.append({'label': i, 'value': i})
 
-    print("Loading cooccurrence")
-    cooccurrence = CoOccurrence()
-    cooccurrence.setup()
-    #cooccurrence.import_occurrences()
+    if load_cooccurence:
+        print("Loading cooccurrence")
+        cooccurrence = CoOccurrence()
+        cooccurrence.setup()
+        #cooccurrence.import_occurrences()
 
-    with open("./occurrence.pickle", 'rb') as handle:
-        cooccurrence.tags_occurrence_dict = cPickle.load(handle)
-    occurrence_df = pd.DataFrame.from_dict(cooccurrence.tags_occurrence_dict, orient='index')
+        with open("./occurrence.pickle", 'rb') as handle:
+            cooccurrence.tags_occurrence_dict = cPickle.load(handle)
+        occurrence_df = pd.DataFrame.from_dict(cooccurrence.tags_occurrence_dict, orient='index')
 
 
     end = datetime.datetime.now()
@@ -242,7 +245,7 @@ content_first_row = dbc.Row(
                 updatemode='mouseup',
                 step=1,
                 value=[0, no_of_unique_dates],
-                pushable=1), html.Div(id='my-output', style={"text-align": "center", "display": "inline-block", "width":"100%"})]), md=4
+                pushable=2), html.Div(id='my-output', style={"text-align": "center", "display": "inline-block", "width":"100%"})]), md=4
         ),
         dbc.Col(
             dcc.Graph(id='tags_chart'), md=4
@@ -348,9 +351,9 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
 
 
 ################################################################################################# Helper method for tags chart
-def top_n_tags(cooccurrence, region,category,startdate ,enddate,n = 10):
+def top_n_tags(cooccurrence, regions,categories,startdate,enddate,n = 10):
 
-    values = cooccurrence.df.loc[(cooccurrence.df["region"] == region) & (cooccurrence.df["tagged"]) & (cooccurrence.df["category_text"] == category) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate)]["tags"]
+    values = cooccurrence.df.loc[(cooccurrence.df["region"].isin(regions)) & (cooccurrence.df["tagged"]) & (cooccurrence.df["category_text"].isin(categories)) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate)]["tags"]
     cooccurrence.tags_occurrence_dict.clear()
     cooccurrence.tags_occurrence_dict = {cooccurrence.unique_tags[i]: 0 for i in range(0, len(cooccurrence.unique_tags))}
     for tags in values:
@@ -402,9 +405,9 @@ def settext(slider_interval):
 @app.callback(
     dash.dependencies.Output('stacked-area-chart', 'figure'),
     [dash.dependencies.Input('title_drop_down', 'value'),
-    Input('filter_time', 'value'),
+    Input('filter_time', 'value'), Input("dataslider", "value"),
      dash.dependencies.Input('categories_drop_down', 'value')])
-def update_graph(regionInput, timeInput, categoryInput):
+def update_graph(regionInput, timeInput, slider_interval, categoryInput):
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
 
@@ -414,12 +417,16 @@ def update_graph(regionInput, timeInput, categoryInput):
 
     fig = go.Figure()
     if selected_regions:
-
+        total_videos_for_region = df.loc[(df.region.isin(selected_regions)) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1] - 1])), selected_time_format]
+        #videos_that_match = df.loc[(df.category_text.isin(selected_categories)) & (df.region.isin(selected_regions)) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1] - 1])), selected_time_format]
+        total_videos_for_region = total_videos_for_region.value_counts()
+        total_videos_for_region = total_videos_for_region.sort_index()
         color_count = 0
         for categories in selected_categories:
             region_count = 0
             for region in selected_regions:
-                videos_that_match = df.loc[(df.category_text == categories) & (df.region == region), selected_time_format]
+                #total_videos_for_region = df.loc[(df.region == region) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1] - 1])), selected_time_format]
+                videos_that_match = df.loc[(df.category_text == categories) & (df.region == region) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1]-1])), selected_time_format]
                 if (region_count == 0):
                     videos_that_match_count = videos_that_match.value_counts()
                     region_count += 1;
@@ -429,7 +436,8 @@ def update_graph(regionInput, timeInput, categoryInput):
                 videos_that_match_count = videos_that_match_count.sort_index()
 
             x = videos_that_match_count.index
-            y = videos_that_match_count.values
+            y_temp = (videos_that_match_count / total_videos_for_region) * 100
+            y = y_temp.values
 
             color_count += 1
             fig.add_trace(go.Scatter(
@@ -438,8 +446,8 @@ def update_graph(regionInput, timeInput, categoryInput):
                 mode='lines',
                 name=categories,
                 line=dict(width=0.5, color=available_colors[color_count-1]),
-                stackgroup='one', # define stack group
-                groupnorm='percent' # sets the normalization for the sum of the stackgroup
+                stackgroup='one' # define stack group
+                #groupnorm='percent' # sets the normalization for the sum of the stackgroup
             ))
 
 
@@ -448,6 +456,7 @@ def update_graph(regionInput, timeInput, categoryInput):
          title="Categories",
          title_font_size = 20, legend_font_size = 10,
          showlegend=True,
+         hovermode='x unified',
          yaxis=dict(type='linear',ticksuffix='%'))
 
         fig.update_xaxes(
@@ -472,31 +481,34 @@ def update_graph(regionInput, timeInput, categoryInput):
 def update_tag_chart(input_countries, input_categories, slider_interval):
     #unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
     print("Callback for tag chart has been called")
-    top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, region="BR", category="Gaming",
-                                 startdate=pd.to_datetime("2020-08-12T00:00:00Z"),
-                                 enddate=pd.to_datetime("2021-10-04T00:00:00Z"))
+    if load_cooccurence:
+        top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries, categories=input_categories,
+                                     startdate=pd.to_datetime(unique_dates[slider_interval[0]]),
+                                     enddate=pd.to_datetime(unique_dates[slider_interval[1]-1]))
 
-    fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker_color='rgb(44, 127, 184)'))
+        fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker_color='rgb(44, 127, 184)'))
 
-    fig.update_layout(
-         title = "Tags",
-         title_font_size = 20, legend_font_size = 10,
-         showlegend=True,
-         yaxis=dict(type='linear'))
+        fig.update_layout(
+             title = "Tags",
+             title_font_size = 20, legend_font_size = 10,
+             showlegend=True,
+             yaxis=dict(type='linear'))
 
-    fig.update_xaxes(
-         title_text = 'Tags',
-         title_font=dict(size=15, family='Verdana', color='black'),
-         tickfont=dict(family='Calibri', color='black', size=12))
+        fig.update_xaxes(
+             title_text = 'Tags',
+             title_font=dict(size=15, family='Verdana', color='black'),
+             tickfont=dict(family='Calibri', color='black', size=12))
 
-    fig.update_yaxes(
-         title_text = "Number of videos",
-         title_font=dict(size=15, family='Verdana', color='black'),
-         tickfont=dict(family='Calibri', color='black', size=12))
+        fig.update_yaxes(
+             title_text = "Number of videos",
+             title_font=dict(size=15, family='Verdana', color='black'),
+             tickfont=dict(family='Calibri', color='black', size=12))
 
-    fig.update_layout(showlegend=False)
+        fig.update_layout(showlegend=False)
 
-    return fig
+        return fig
+    else:
+        return go.Figure(go.Bar(x=["Debugging"], y=[20], marker_color='rgb(44, 127, 184)'))
 
 
 print("-------------------> The application is running")
