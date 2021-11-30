@@ -7,12 +7,10 @@ from Data_processing.Coocurrence.cooccurrence import CoOccurrence
 
 
 # todo: This should support figure import/export using something!
-def make_network_fig(graph, cooccurrence: CoOccurrence, edge_degree_min=5):
+def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, edge_degree_min=5):
     # import graph
     G = graph  # nx.random_geometric_graph(200, 0.125)
     # decide whether or not to plot data points or clusters
-    layout = nx.drawing.layout.kamada_kawai_layout(G=G, pos={i: r for i, r in zip(range(G.number_of_nodes()), list(
-        nx.drawing.layout.random_layout(G).values()))})  # nx.drawing.nx_agraph.pygraphviz_layout(G,prog="sfdp")
     # in case of edges generate x and y of edges
     # None acts as seperator
 
@@ -22,25 +20,44 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, edge_degree_min=5):
     sizes = []
     node_text = []
     size_dict = cooccurrence.normalize_by_occurrence()
-    edge_nodes = []
+    edge_nodes = {i: False for i in G.nodes}
     node_degree = []
-    for node in G.nodes():
+
+    if node_selection:
+        nodes = [cooccurrence.tags_dict[node_selection[i]] for i in range(len(node_selection))]
+        for node in nodes:
+            if G.degree(node) >= edge_degree_min:
+                edge_nodes[node] = True
+            else:
+                edge_nodes[node] = False
+    for node in G.nodes:
         x, y = layout[node]
         node_x.append(x)
         node_y.append(y)
         sizes.append(size_dict[cooccurrence.tags_dict_inverse[node]] * 10)
         node_text.append(cooccurrence.tags_dict_inverse[node])
-        if G.degree(node) >= edge_degree_min:
-            edge_nodes.append(True)
-        else:
-            edge_nodes.append(False)
-        node_degree.append(G.degree(node))
 
+        node_degree.append(G.degree(node))  # todo ?
+    if node_selection:
+        displayed_tags = list({i: (node_text[i] if node_text[i] in node_selection else "") for i in
+                               range(len(node_text))}.values())  # todo terrible terrible coding #todo THIS IS IT
+    else:
+        displayed_tags = []
     edge_x = []
     edge_y = []
 
     for edge in G.edges.data("weight"):
-        if edge_nodes[edge[0]] or edge_nodes[edge[1]]:
+        if node_selection:  # todo refractor
+            if edge_nodes[edge[0]] and edge_nodes[edge[1]]:
+                x0, y0 = layout[edge[0]]
+                x1, y1 = layout[edge[1]]
+                edge_x.append(x0)
+                edge_x.append(x1)
+                edge_x.append(None)
+                edge_y.append(y0)
+                edge_y.append(y1)
+                edge_y.append(None)
+        else:
             x0, y0 = layout[edge[0]]
             x1, y1 = layout[edge[1]]
             edge_x.append(x0)
@@ -49,18 +66,15 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, edge_degree_min=5):
             edge_y.append(y0)
             edge_y.append(y1)
             edge_y.append(None)
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
-        hoverinfo='text',
-        mode='lines')
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
         mode='text+markers',
-        text=node_text,
+        text=displayed_tags,
         textposition="top center",
         hoverinfo='text',
+        hovertext=node_text,
+        customdata=node_text,
         marker=dict(
             showscale=True,
             # colorscale options
@@ -79,14 +93,20 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, edge_degree_min=5):
             ),
             line_width=2))
 
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='text',
+        mode='lines')
+
+
+
     node_adjacencies = []
-    node_text = []
     for node, adjacencies in enumerate(G.adjacency()):
         node_adjacencies.append(len(adjacencies[1]))
-        node_text.append(cooccurrence.tags_dict_inverse[node])
 
     node_trace.marker.color = node_adjacencies
-    node_trace.text = node_text
+    # node_trace.text = node_text
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
@@ -95,6 +115,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, edge_degree_min=5):
                         hovermode='closest',
                         margin=dict(b=20, l=5, r=5, t=40),
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                        clickmode='event+select')
                     )
     return fig

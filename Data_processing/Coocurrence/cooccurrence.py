@@ -30,7 +30,7 @@ class CoOccurrence:
         self.occurrence_max = None
 
     def setup(self, csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python", error_bad_lines=False).iloc[100000:100100] #todo dataset is cut for processing reasons
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python", error_bad_lines=False).iloc[100000:100001] #todo dataset is cut for processing reasons
         self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():
@@ -51,7 +51,7 @@ class CoOccurrence:
             self.tags_occurrence_dict.clear()
         # THIS SETS LEN TO ZERO
         if self.df == None:
-            self.setup(csv_path)
+            self.setup(csv_path=csv_path)
         self.dtype_co_occurrence = dtype_co_occurrence
         self.tags_occurrence_dict = {self.unique_tags[i]: 0 for i in range(0, len(self.unique_tags))}
         assert np.issubdtype(self.dtype_co_occurrence, np.integer)
@@ -76,7 +76,9 @@ class CoOccurrence:
                                                   create_using=nx.Graph)
 
     def generate_partition(self):
-        self.partition = community_louvain.generate_dendrogram(self.tag_graph, weight='weight')
+        self.partition = community_louvain.best_partition(self.tag_graph,weight="weight")
+        #todo partition option
+        #self.partition = community_louvain.generate_dendrogram(self.tag_graph, weight='weight')
 
     def normalize_by_occurrence(self):
         return {k: v / self.occurrence_max for k, v in self.tags_occurrence_dict.items()}

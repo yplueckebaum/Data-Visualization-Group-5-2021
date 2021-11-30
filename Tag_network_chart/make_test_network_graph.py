@@ -81,7 +81,3 @@ def make_network_fig():
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                     )
     return fig
-
-
-figure = make_network_fig()
-figure.show()
