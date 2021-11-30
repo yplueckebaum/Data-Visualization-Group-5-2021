@@ -12,11 +12,13 @@ def find_csv_filenames(path_to_dir="Dataset/", suffix=".csv" ):
     filenames = listdir(path_to_dir)
     return [ filename for filename in filenames if filename.endswith( suffix ) ]
 
+
 def create_list_of_country_codes(filenames):
     country_codes = []
     for filename in filenames:
         country_codes.append(filename[:filename.find("_")])
     return country_codes
+
 
 def did_use_caps(title):
     words = title.split()
@@ -24,6 +26,7 @@ def did_use_caps(title):
         if word.isupper() == True:
             return True
     return False
+
 
 def did_use_parenthesis_or_square_brackets(title):
     found_parenthesis_pair = False

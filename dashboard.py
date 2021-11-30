@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################################# IMPORTS
+import json
 import datetime
 import dash
 from dash import dcc
@@ -18,7 +19,7 @@ import _pickle as cPickle
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
-load_cooccurence = False
+load_cooccurence = True
 
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
@@ -201,7 +202,7 @@ controls = dbc.FormGroup(
             'textAlign': 'center'
         }),
         dcc.Dropdown(
-            id="title_drop_down",
+            id="countries-drop-down",
             options=country_list,
             value=['BR'],
             multi=True
@@ -209,7 +210,7 @@ controls = dbc.FormGroup(
         html.P('Categories', style={
             'textAlign': 'center'
         }),
-        dcc.Dropdown(id="categories_drop_down", options=categories_list, value=["Music", "Gaming"], multi=True),
+        dcc.Dropdown(id="categories-drop-down", options=categories_list, value=["Music", "Gaming"], multi=True),
         html.P('Time scale', style={
             'textAlign': 'center'
         }),
@@ -239,17 +240,17 @@ content_first_row = dbc.Row(
             dcc.Graph(id='stacked-area-chart'), md=4
         ),
         dbc.Col(
-            html.Div(children=[dcc.Graph(id='title_bar_chart'), dcc.RangeSlider(
-                id="dataslider",
+            html.Div(children=[dcc.Graph(id='title-bar-chart'), dcc.RangeSlider(
+                id="rangeslider-dates",
                 min=0,
                 max=no_of_unique_dates,
                 updatemode='mouseup',
                 step=1,
                 value=[0, no_of_unique_dates],
-                pushable=2), html.Div(id='my-output', style={"text-align": "center", "display": "inline-block", "width":"100%"})]), md=4
+                pushable=2), html.Div(id='div-date-strings-for-rangeslider', style={"text-align": "center", "display": "inline-block", "width":"100%"})]), md=4
         ),
         dbc.Col(
-            dcc.Graph(id='tags_chart'), md=4
+            dcc.Graph(id='tags-chart'), md=4
         )
     ]
 )
@@ -257,7 +258,7 @@ content_first_row = dbc.Row(
 content_third_row = dbc.Row(
     [
         dbc.Col(
-            html.Div(), md=12,
+            dcc.Graph(id='graph_5'), md=12
         )
     ]
 )
@@ -265,10 +266,10 @@ content_third_row = dbc.Row(
 content_fourth_row = dbc.Row(
     [
         dbc.Col(
-            dcc.Graph(id='graph_5'), md=6
+            html.Div(id='div-hidden-div-for-category-clicked'), md=4
         ),
         dbc.Col(
-            dcc.Graph(id='graph_6'), md=6
+            html.Div(id='div-hidden-div-for-tagchart'), md=4
         )
     ]
 )
@@ -352,9 +353,15 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
 
 
 ################################################################################################# Helper method for tags chart
-def top_n_tags(cooccurrence, regions,categories,startdate,enddate,n = 10):
-
-    values = cooccurrence.df.loc[(cooccurrence.df["region"].isin(regions)) & (cooccurrence.df["tagged"]) & (cooccurrence.df["category_text"].isin(categories)) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate)]["tags"]
+def top_n_tags(cooccurrence, regions,categories,startdate,enddate,title_filter_string, n = 10):
+    if title_filter_string != "":
+        title_chart_string_to_array = title_filter_string.split("|")
+        title_chart_column = title_chart_string_to_array[0]
+        title_chart_boolean = bool(title_chart_string_to_array[1])
+        values = cooccurrence.df.loc[(cooccurrence.df["region"].isin(regions)) & (cooccurrence.df["tagged"]) & (cooccurrence.df["category_text"].isin(categories)) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate) & (cooccurrence.df[title_chart_column] == title_chart_boolean)]["tags"]
+    else:
+        values = cooccurrence.df.loc[(cooccurrence.df["region"].isin(regions)) & (cooccurrence.df["tagged"]) & (
+            cooccurrence.df["category_text"].isin(categories)) & (pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (pd.to_datetime(cooccurrence.df["trending_date"]) <= enddate)]["tags"]
     cooccurrence.tags_occurrence_dict.clear()
     cooccurrence.tags_occurrence_dict = {cooccurrence.unique_tags[i]: 0 for i in range(0, len(cooccurrence.unique_tags))}
     for tags in values:
@@ -366,13 +373,17 @@ def top_n_tags(cooccurrence, regions,categories,startdate,enddate,n = 10):
 
 ################################################################################################# Callbacks
 @app.callback(
-    Output(component_id='title_bar_chart', component_property='figure'),
-    Input("title_drop_down", "value"),
-    Input("categories_drop_down", "value"),
-    Input("dataslider", "value"))
-def update_output_div(input_countries, input_categories, slider_interval):
+    Output('title-bar-chart', 'figure'),
+    Input("countries-drop-down", "value"),
+    Input("categories-drop-down", "value"),
+    Input("rangeslider-dates", "value"),
+    Input("div-hidden-div-for-category-clicked", "children"))
+def update_title_chart(input_countries, input_categories, slider_interval, category_selected_from_stacked_area_chart):
     print("Callback for title chart has been called")
-    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(input_countries, input_categories, slider_interval)
+    input_categories_array = input_categories
+    if category_selected_from_stacked_area_chart != "":
+        input_categories_array = [category_selected_from_stacked_area_chart]
+    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(input_countries, input_categories_array, slider_interval)
 
     fig = go.Figure()
     fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'], y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
@@ -397,17 +408,17 @@ def update_output_div(input_countries, input_categories, slider_interval):
     return fig
 
 @app.callback(
-    Output('my-output', component_property='children'),
-    Input('dataslider', 'value'))
+    Output('div-date-strings-for-rangeslider', 'children'),
+    Input('rangeslider-dates', 'value'))
 def settext(slider_interval):
     print("Callback for range slider has been called")
     return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1]-1][0:10]
 
 @app.callback(
     dash.dependencies.Output('stacked-area-chart', 'figure'),
-    [dash.dependencies.Input('title_drop_down', 'value'),
-    Input('filter_time', 'value'), Input("dataslider", "value"),
-     dash.dependencies.Input('categories_drop_down', 'value')])
+    [dash.dependencies.Input('countries-drop-down', 'value'),
+    Input('filter_time', 'value'), Input("rangeslider-dates", "value"),
+     dash.dependencies.Input('categories-drop-down', 'value')])
 def update_graph(regionInput, timeInput, slider_interval, categoryInput):
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
@@ -444,6 +455,7 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
             fig.add_trace(go.Scatter(
                 x = x,
                 y = y,
+                customdata=videos_that_match_count,
                 mode='lines',
                 name=categories,
                 line=dict(width=0.5, color=available_colors[color_count-1]),
@@ -457,8 +469,10 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
          title="Categories",
          title_font_size = 20, legend_font_size = 10,
          showlegend=True,
-         hovermode='x unified',
-         yaxis=dict(type='linear',ticksuffix='%'))
+         hovermode="closest",
+         hoverdistance=500,
+         yaxis=dict(type='linear',ticksuffix='%')
+        )
 
         fig.update_xaxes(
              title_text = 'Date',
@@ -466,7 +480,7 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
              tickfont=dict(family='Calibri', color='black', size=12))
 
         fig.update_yaxes(
-             title_text = "Number of videos(%)", range = (0,100),
+             title_text = "Number of videos(%)",
              title_font=dict(size=15, family='Verdana', color='black'),
              tickfont=dict(family='Calibri', color='black', size=12))
 
@@ -475,17 +489,21 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
 
 
 @app.callback(
-    Output(component_id='tags_chart', component_property='figure'),
-    Input("title_drop_down", "value"),
-    Input("categories_drop_down", "value"),
-    Input("dataslider", "value"))
-def update_tag_chart(input_countries, input_categories, slider_interval):
-    #unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
+    Output('tags-chart', 'figure'),
+    Input("countries-drop-down", "value"),
+    Input("categories-drop-down", "value"),
+    Input("rangeslider-dates", "value"),
+    Input("div-hidden-div-for-category-clicked", "children"),
+    Input("div-hidden-div-for-tagchart", "children"))
+def update_tags_chart(input_countries, input_categories, slider_interval, category_selected_from_stacked_area_chart, selected_from_title_chart):
     print("Callback for tag chart has been called")
     if load_cooccurence:
-        top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries, categories=input_categories,
+        input_categories_array = input_categories
+        if category_selected_from_stacked_area_chart != "":
+            input_categories_array = [category_selected_from_stacked_area_chart]
+        top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries, categories=input_categories_array,
                                      startdate=pd.to_datetime(unique_dates[slider_interval[0]]),
-                                     enddate=pd.to_datetime(unique_dates[slider_interval[1]-1]))
+                                     enddate=pd.to_datetime(unique_dates[slider_interval[1]-1]), title_filter_string=selected_from_title_chart)
 
         fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker_color='rgb(44, 127, 184)'))
 
@@ -493,6 +511,7 @@ def update_tag_chart(input_countries, input_categories, slider_interval):
              title = "Tags",
              title_font_size = 20, legend_font_size = 10,
              showlegend=True,
+            hovermode="closest",
              yaxis=dict(type='linear'))
 
         fig.update_xaxes(
@@ -510,6 +529,38 @@ def update_tag_chart(input_countries, input_categories, slider_interval):
         return fig
     else:
         return go.Figure(go.Bar(x=["Debugging"], y=[20], marker_color='rgb(44, 127, 184)'))
+
+@app.callback(
+    Output('div-hidden-div-for-category-clicked', 'children'),
+    Input('stacked-area-chart', 'clickData'),
+    State("categories-drop-down", "value"))
+def stacked_area_chart_on_click(clickdata, categories):
+    if clickdata is not None:
+        points = clickdata['points']
+        curve_number = points[0]['curveNumber']
+        category_text = categories[int(curve_number)]
+        return category_text
+    else:
+        return ""
+
+@app.callback(
+    Output('div-hidden-div-for-tagchart', 'children'),
+    Input('title-bar-chart', 'clickData'))
+def title_chart_on_click(clickdata):
+    if clickdata is not None:
+        points = clickdata['points']
+        curve_number = points[0]['curveNumber']
+        point_number = points[0]['pointNumber']
+        boolean_answer = not bool(curve_number)
+        if point_number == 0:
+            return "did_use_parens|" + str(boolean_answer)
+        elif point_number == 1:
+            return "did_use_caps|" + str(boolean_answer)
+        else:
+            return "did_use_emojis|" + str(boolean_answer)
+    else:
+        return ""
+
 
 
 print("-------------------> The application is running")
