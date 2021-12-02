@@ -42,7 +42,9 @@ app.layout = html.Div([
     html.Br(),
     html.Div(id="search-output"),
     html.Br(),
-    html.Div(id="fuckyou")
+    html.Div(id="fuckyou"),
+    html.Br(),
+    html.Div(id="click-info")
 ])
 
 
@@ -75,13 +77,28 @@ def redraw_fig(selectedData, value):  # shit name
     ctx = dash.callback_context
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
     selectedPoints = []
-    if trigger == "search-box":# todo bugs when not typing fast enough
+    if trigger == "search-box":  # todo bugs when not typing fast enough
         selectedPoints = [str(value)]
     elif trigger == "tag_network_graph":
         if selectedData:
             selectedPoints = [selectedData["points"][i]["customdata"] for i in range(len(selectedData["points"]))]
     return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None, 0)
 
+
+@app.callback(
+    Output(component_id="click-info", component_property="children"),
+    Input(component_id="tag_network_graph", component_property="clickData")
+) #todo make table
+def selection_info(clickData):
+    top_5 = ["https://youtu.be/" + cooccurrence.df.sample()["video_id"] for i in range(5)]  # todo make actual top 5
+    output = f"""
+1. {top_5[0]}
+2. {top_5[1]}
+3. {top_5[2]}
+4. {top_5[3]}
+5. {top_5[4]}
+    """
+    return output
 
 
 if __name__ == '__main__':
