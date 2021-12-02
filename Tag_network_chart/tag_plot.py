@@ -12,7 +12,7 @@ from textwrap import dedent as d
 import json
 
 from Data_processing.Coocurrence.cooccurrence import CoOccurrence
-from make_network_graph import make_network_fig
+from Tag_network_chart.make_network_graph import make_network_fig
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -25,7 +25,6 @@ cooccurrence.generate_occurrences(dtype_co_occurrence=np.uint32)  # network viz 
 cooccurrence.generate_graph()
 
 layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
-
 # fig = go.Figure(data=[go.Figure])
 # go.Scatter(x=[1, 2, 3], y=[4, 1, 2])])
 
@@ -70,20 +69,19 @@ def update_fig(selectedData):
 @app.callback(
     Output(component_id="tag_network_graph", component_property="figure"),
     Input(component_id="tag_network_graph", component_property="selectedData"),
-    Input(component_id="search-box", component_property="value"),
-    Input(component_id="tag_network_graph", component_property="clickData")
+    Input(component_id="search-box", component_property="value")
 )
-def redraw_fig(selectedData, value, clickData):  # shit name
+def redraw_fig(selectedData, value):  # shit name
     ctx = dash.callback_context
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
-    if trigger == "search-box":
-        return make_network_fig(cooccurrence.tag_graph, cooccurrence, [str(value)], layout, None, 0)
-    elif trigger:
+    selectedPoints = []
+    if trigger == "search-box":# todo bugs when not typing fast enough
+        selectedPoints = [str(value)]
+    elif trigger == "tag_network_graph":
         if selectedData:
             selectedPoints = [selectedData["points"][i]["customdata"] for i in range(len(selectedData["points"]))]
-        else:
-            selectedPoints = []
-        return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None, 0)
+    return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None, 0)
+
 
 
 if __name__ == '__main__':

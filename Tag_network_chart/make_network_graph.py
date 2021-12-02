@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from Data_processing.Coocurrence.cooccurrence import CoOccurrence
 
 
-# todo: This should support figure import/export using something!
 def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, highlighted_point, edge_degree_min=5):
     # import graph
     G = graph  # nx.random_geometric_graph(200, 0.125)
@@ -17,7 +16,6 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
     # safe x and y of nodes
     node_x = []
     node_y = []
-    sizes = []
     node_text = []
     size_dict = cooccurrence.normalize_by_occurrence()
     edge_nodes = {i: False for i in G.nodes}
@@ -34,7 +32,6 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
         x, y = layout[node]
         node_x.append(x)
         node_y.append(y)
-        sizes.append(size_dict[cooccurrence.tags_dict_inverse[node]] * 10)
         node_text.append(cooccurrence.tags_dict_inverse[node])
 
         node_degree.append(G.degree(node))  # todo ?
@@ -84,7 +81,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
             colorscale='YlGnBu',
             reversescale=True,
             color=[],
-            size=10,  # sizes
+            size=10,
             colorbar=dict(
                 thickness=15,
                 title='Node Connections',
@@ -99,13 +96,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
         hoverinfo='text',
         mode='lines')
 
-
-
-    node_adjacencies = []
-    for node, adjacencies in enumerate(G.adjacency()):
-        node_adjacencies.append(len(adjacencies[1]))
-
-    node_trace.marker.color = node_adjacencies
+    node_trace.marker.color = node_degree
     # node_trace.text = node_text
 
     fig = go.Figure(data=[edge_trace, node_trace],
