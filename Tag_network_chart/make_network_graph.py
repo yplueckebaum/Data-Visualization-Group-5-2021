@@ -7,7 +7,7 @@ from Data_processing.Coocurrence.cooccurrence import CoOccurrence
 
 
 # todo: This should support figure import/export using something!
-def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, edge_degree_min=5):
+def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, highlighted_point, edge_degree_min=5):
     # import graph
     G = graph  # nx.random_geometric_graph(200, 0.125)
     # decide whether or not to plot data points or clusters

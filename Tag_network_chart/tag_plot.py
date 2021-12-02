@@ -7,7 +7,6 @@ import os  # my python is in fucking puperty
 import networkx as nx
 import plotly.graph_objs as go
 import pandas as pd
-from colour import Color
 from datetime import datetime
 from textwrap import dedent as d
 import json
@@ -22,8 +21,7 @@ app.title = "Tag network"
 app = dash.Dash(__name__)
 
 cooccurrence = CoOccurrence()
-cooccurrence.generate_occurrences(dtype_co_occurrence=np.uint32,
-                                  csv_path="../")  # network viz master is the cwd for some reason
+cooccurrence.generate_occurrences(dtype_co_occurrence=np.uint32)  # network viz master is the cwd for some reason
 cooccurrence.generate_graph()
 
 layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
@@ -35,7 +33,7 @@ layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
 app.layout = html.Div([
     dcc.Graph(
         id='tag_network_graph',
-        figure=make_network_fig(cooccurrence.tag_graph, cooccurrence, [], layout, 0)
+        figure=make_network_fig(cooccurrence.tag_graph, cooccurrence, [], layout, None, 0)
     ),
     dcc.Markdown(
         html.Pre(id="click_data")
@@ -72,19 +70,20 @@ def update_fig(selectedData):
 @app.callback(
     Output(component_id="tag_network_graph", component_property="figure"),
     Input(component_id="tag_network_graph", component_property="selectedData"),
-    Input(component_id="search-box", component_property="value")
+    Input(component_id="search-box", component_property="value"),
+    Input(component_id="tag_network_graph", component_property="clickData")
 )
-def redraw_fig(selectedData, value):  # shit name
+def redraw_fig(selectedData, value, clickData):  # shit name
     ctx = dash.callback_context
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
     if trigger == "search-box":
-        return make_network_fig(cooccurrence.tag_graph, cooccurrence, [str(value)], layout, 0)
-    else:
+        return make_network_fig(cooccurrence.tag_graph, cooccurrence, [str(value)], layout, None, 0)
+    elif trigger:
         if selectedData:
             selectedPoints = [selectedData["points"][i]["customdata"] for i in range(len(selectedData["points"]))]
         else:
             selectedPoints = []
-        return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, 0)
+        return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None, 0)
 
 
 if __name__ == '__main__':
