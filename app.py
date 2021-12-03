@@ -14,12 +14,13 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 from os.path import exists
-
+import os
 import _pickle as cPickle
+from flask import send_from_directory
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
-load_cooccurence = False
+debugging = False
 
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
@@ -117,6 +118,7 @@ CONTENT_STYLE = {
     'margin-left': '25%',
     'margin-right': '5%',
     'padding': '20px 10p'
+
 }
 
 TEXT_STYLE = {
@@ -143,11 +145,14 @@ if not already_loaded_dataset_and_set_up_variables:
 
     def prepareData(processed_csv_path):
         print("prepareData has been called")
-        df = pd.read_csv(processed_csv_path)
+        if debugging:
+            df = pd.read_csv(processed_csv_path, nrows=1000)
+        else:
+            df = pd.read_csv(processed_csv_path)
         df.publishedAt = pd.to_datetime(df.publishedAt)
         df.trending_date = pd.to_datetime(df.trending_date)
 
-        df['Years'] = df['trending_date'].dt.strftime('%Y')
+        #df['Years'] = df['trending_date'].dt.strftime('%Y')
         df['Months'] = df['trending_date'].dt.strftime('%Y-%m')
         df['Days'] = df['trending_date'].dt.date
 
@@ -167,10 +172,13 @@ if not already_loaded_dataset_and_set_up_variables:
     available_regions, available_categories = extractFilterOptions(df)
 
     print("Setting up unique dates and lists for dropdowns")
-    dates_from_processed_dataset_test = df["trending_date"]
-    unique_dates = dates_from_processed_dataset_test.unique()
-    unique_dates = unique_dates.astype(str)
-    unique_dates_test = np.array(unique_dates)
+    dates_from_processed_dataset = df["trending_date"]
+    unique_dates_dates = dates_from_processed_dataset.unique()
+    max_date = unique_dates_dates.max()
+    min_date = unique_dates_dates.min()
+    max_date_string = str(max_date)
+    min_date_string = str(min_date)
+    unique_dates = unique_dates_dates.astype(str)
     no_of_unique_dates = len(unique_dates)
 
     country_list = []
@@ -181,7 +189,7 @@ if not already_loaded_dataset_and_set_up_variables:
     for i in available_categories:
         categories_list.append({'label': i, 'value': i})
 
-    if load_cooccurence:
+    if not debugging:
         print("Setting up cooccurrence")
         cooccurrence = CoOccurrence()
         cooccurrence.setup(df_from_dashboard=df)
@@ -220,7 +228,7 @@ controls = dbc.FormGroup(
         }),
         dbc.Card([dbc.RadioItems(
             id='filter_time',
-            options=[{'label': i, 'value': i} for i in ['Days', 'Months', 'Years']],
+            options=[{'label': i, 'value': i} for i in ['Days', 'Months']],
             value='Months',  # default value
             style={
                 'margin': 'auto'
@@ -241,7 +249,7 @@ sidebar = html.Div(
 content_first_row = dbc.Row(
     [
         dbc.Col(
-            dcc.Graph(id='stacked-area-chart'), md=4
+            dcc.Graph(id='stacked-area-chart', className="TETSTTSTSTS"), md=4
         ),
         dbc.Col(
             html.Div(children=[dcc.Graph(id='title-bar-chart'), dcc.RangeSlider(
@@ -296,15 +304,29 @@ content = html.Div(
     style=CONTENT_STYLE
 )
 
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+assets_path = os.getcwd() +'/assets'
+#app = dash.Dash(__name__,assets_folder=assets_path)
+
+app = dash.Dash(__name__, assets_folder=assets_path, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div([sidebar, content])
 
 end = datetime.datetime.now()
 print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds to set up the dashboard.")
 
 
-################################################################################################# Helper method for title chart
-def update_data_for_titlechart(input_countries, input_categories, slider_interval):
+################################################################################################# Helper methods
+def find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div):
+    if date_string_from_hidden_rangeslider_div is not None:
+        datestring_array = date_string_from_hidden_rangeslider_div.split("|")
+        return datestring_array[0], datestring_array[1]
+    else:
+        return min_date_string, max_date_string
+
+
+def update_data_for_titlechart(input_countries, input_categories, slider_interval, date_lower, date_upper):
+    date_lower_only_date = date_lower[0:10]
+    date_upper_only_date = date_upper[0:10]
     total_titles = 0
     did_use_par_or_bracks = 0
     did_use_caps = 0
@@ -315,7 +337,7 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
 
     for input_country in input_countries:
         if len(input_categories) == 0:
-            if slider_interval[0] == 0 and slider_interval[1] == no_of_unique_dates:
+            if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_title_totals.csv"
                 df_for_titlechart = pd.read_csv(current_data_set)
 
@@ -327,8 +349,8 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
             else:
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_allcategories_totals_per_day.csv"
                 df_for_titlechart = pd.read_csv(current_data_set)
-                mask = (df_for_titlechart['date'] >= unique_dates[slider_interval[0]]) & (
-                            df_for_titlechart['date'] <= unique_dates[slider_interval[1] - 1])
+                mask = (df_for_titlechart['date'] >= date_lower_only_date) & (
+                            df_for_titlechart['date'] <= date_upper_only_date)
                 df_for_titlechart = df_for_titlechart.loc[mask]
 
                 for index, row in df_for_titlechart.iterrows():
@@ -347,8 +369,8 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
                 else:
                     continue
 
-                mask = (df_for_titlechart['date'] >= unique_dates[slider_interval[0]]) & (
-                            df_for_titlechart['date'] <= unique_dates[slider_interval[1] - 1])
+                mask = (df_for_titlechart['date'] >= date_lower_only_date) & (
+                            df_for_titlechart['date'] <= date_upper_only_date)
                 df_for_titlechart = df_for_titlechart.loc[mask]
 
                 for index, row in df_for_titlechart.iterrows():
@@ -367,7 +389,6 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
     return total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis
 
 
-################################################################################################# Helper method for tags chart
 def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filter_string, n=10):
     if title_filter_string != "":
         title_chart_string_to_array = title_filter_string.split("|")
@@ -394,59 +415,13 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
 
 ################################################################################################# Callbacks
 @app.callback(
-    Output('title-bar-chart', 'figure'),
-    Input("countries-drop-down", "value"),
-    Input("categories-drop-down", "value"),
-    Input("rangeslider-dates", "value"),
-    Input("div-hidden-div-for-category-clicked", "children"))
-def update_title_chart(input_countries, input_categories, slider_interval, category_selected_from_stacked_area_chart):
-    print("Callback for title chart has been called")
-    input_categories_array = input_categories
-    if category_selected_from_stacked_area_chart != "":
-        input_categories_array = [category_selected_from_stacked_area_chart]
-    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(
-        input_countries, input_categories_array, slider_interval)
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
-                         y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
-    fig.add_trace(go.Bar(name="No", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
-                         y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis],
-                         marker_color='rgb(254, 178, 76)'))
-
-    fig.update_layout(barmode='stack')
-    fig.update_layout(yaxis_range=(0, 100))
-    fig.update_layout(transition={
-        'duration': 500,
-        'easing': 'cubic-in-out'
-    })
-    fig.update_yaxes(
-        title_text="Number of videos(%)", range=(0, 100),
-        title_font=dict(size=15, family='Verdana', color='black'),
-        tickfont=dict(family='Calibri', color='black', size=12))
-    fig.update_layout(
-        title="Titles",
-        title_font_size=20, legend_font_size=10,
-        showlegend=True,
-        yaxis=dict(type='linear', ticksuffix='%'))
-
-    return fig
-
-
-@app.callback(
-    Output('div-date-strings-for-rangeslider', 'children'),
-    Input('rangeslider-dates', 'value'))
-def settext(slider_interval):
-    print("Callback for range slider has been called")
-    return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
-
-
-@app.callback(
     dash.dependencies.Output('stacked-area-chart', 'figure'),
     [dash.dependencies.Input('countries-drop-down', 'value'),
-     Input('filter_time', 'value'), Input("rangeslider-dates", "value"),
+     Input('filter_time', 'value'),
+     Input("rangeslider-dates", "value"),
      dash.dependencies.Input('categories-drop-down', 'value')])
 def update_graph(regionInput, timeInput, slider_interval, categoryInput):
+    #date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
 
@@ -510,7 +485,10 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
             title_text='Date',
             title_font=dict(size=15, family='Verdana', color='black'),
             tickfont=dict(family='Calibri', color='black', size=12),
-            rangeslider_visible=True
+            rangeslider_visible=True,
+            rangeslider=dict(
+                autorange=True
+            )
         )
 
         fig.update_yaxes(
@@ -519,6 +497,71 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
             tickfont=dict(family='Calibri', color='black', size=12))
 
     return fig
+
+
+@app.callback(
+    Output('div-hidden-div-for-rangeslider', 'children'),
+    Input('stacked-area-chart', 'relayoutData'),
+    prevent_initial_call=True)
+def rangeslider_on_change(relayoutdata):
+    if "xaxis.range" in relayoutdata:
+        xaxis_range = relayoutdata["xaxis.range"]
+        return str(xaxis_range[0]) + "|" + str(xaxis_range[1])
+    else:
+        return min_date_string + "|" + max_date_string
+
+
+@app.callback(
+    Output('title-bar-chart', 'figure'),
+    Input("countries-drop-down", "value"),
+    Input("categories-drop-down", "value"),
+    Input("rangeslider-dates", "value"),
+    Input("div-hidden-div-for-rangeslider", "children"),
+    Input("div-hidden-div-for-category-clicked", "children"))
+def update_title_chart(input_countries, input_categories, slider_interval, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart):
+    print("Callback for title chart has been called")
+    date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
+    input_categories_array = input_categories
+    if category_selected_from_stacked_area_chart != "":
+        input_categories_array = [category_selected_from_stacked_area_chart]
+    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(
+        input_countries, input_categories_array, slider_interval, date_lower, date_upper)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
+                         y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
+    fig.add_trace(go.Bar(name="No", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
+                         y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis],
+                         marker_color='rgb(254, 178, 76)'))
+
+    fig.update_layout(barmode='stack')
+    fig.update_layout(yaxis_range=(0, 100))
+    fig.update_layout(transition={
+        'duration': 500,
+        'easing': 'cubic-in-out'
+    })
+    fig.update_yaxes(
+        title_text="Number of videos(%)", range=(0, 100),
+        title_font=dict(size=15, family='Verdana', color='black'),
+        tickfont=dict(family='Calibri', color='black', size=12))
+    fig.update_layout(
+        title="Titles",
+        title_font_size=20, legend_font_size=10,
+        showlegend=True,
+        yaxis=dict(type='linear', ticksuffix='%'))
+
+    return fig
+
+
+@app.callback(
+    Output('div-date-strings-for-rangeslider', 'children'),
+    Input('rangeslider-dates', 'value'))
+def settext(slider_interval):
+    print("Callback for range slider has been called")
+    return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
+
+
+
 
 
 @app.callback(
@@ -531,7 +574,7 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
 def update_tags_chart(input_countries, input_categories, slider_interval, category_selected_from_stacked_area_chart,
                       selected_from_title_chart):
     print("Callback for tag chart has been called")
-    if load_cooccurence:
+    if not debugging:
         input_categories_array = input_categories
         if category_selected_from_stacked_area_chart != "":
             input_categories_array = [category_selected_from_stacked_area_chart]
@@ -597,17 +640,6 @@ def title_chart_on_click(clickdata):
             return "did_use_caps|" + str(boolean_answer)
         else:
             return "did_use_emojis|" + str(boolean_answer)
-    else:
-        return ""
-
-
-@app.callback(
-    Output('div-hidden-div-for-rangeslider', 'children'),
-    Input('stacked-area-chart', 'relayoutData'),
-    prevent_initial_call=True)
-def rangeslider_on_change(relayoutdata):
-    if relayoutdata is not None:
-        return str(relayoutdata)
     else:
         return ""
 
