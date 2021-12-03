@@ -192,7 +192,7 @@ if not already_loaded_dataset_and_set_up_variables:
     if not debugging:
         print("Setting up cooccurrence")
         cooccurrence = CoOccurrence()
-        cooccurrence.setup(df_from_dashboard=df)
+        cooccurrence.setup(debugging, df_from_dashboard=df)
         print("Finished setting up cooccurrence")
 
         print("Setting up cooccurrence dictionary from pickle")
@@ -229,7 +229,7 @@ controls = dbc.FormGroup(
         dbc.Card([dbc.RadioItems(
             id='filter_time',
             options=[{'label': i, 'value': i} for i in ['Days', 'Months']],
-            value='Months',  # default value
+            value='Days',  # default value
             style={
                 'margin': 'auto'
             }
@@ -342,15 +342,14 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
                 df_for_titlechart = pd.read_csv(current_data_set)
 
                 total_titles += np.array(df_for_titlechart.total_number_of_titles)[0]
-                did_use_par_or_bracks += \
-                np.array(df_for_titlechart.number_of_titles_with_parenthesis_or_squarebracket_usage)[0]
+                did_use_par_or_bracks += np.array(df_for_titlechart.number_of_titles_with_parenthesis_or_squarebracket_usage)[0]
                 did_use_caps += np.array(df_for_titlechart.number_of_titles_with_caps_usage)[0]
                 did_use_emojis += np.array(df_for_titlechart.number_of_titles_with_emoji_usage)[0]
             else:
                 current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_allcategories_totals_per_day.csv"
                 df_for_titlechart = pd.read_csv(current_data_set)
-                mask = (df_for_titlechart['date'] >= date_lower_only_date) & (
-                            df_for_titlechart['date'] <= date_upper_only_date)
+                mask = (df_for_titlechart['date'] > date_lower) & (
+                            df_for_titlechart['date'] < date_upper)
                 df_for_titlechart = df_for_titlechart.loc[mask]
 
                 for index, row in df_for_titlechart.iterrows():
@@ -369,8 +368,8 @@ def update_data_for_titlechart(input_countries, input_categories, slider_interva
                 else:
                     continue
 
-                mask = (df_for_titlechart['date'] >= date_lower_only_date) & (
-                            df_for_titlechart['date'] <= date_upper_only_date)
+                mask = (df_for_titlechart['date'] > date_lower) & (
+                            df_for_titlechart['date'] < date_upper)
                 df_for_titlechart = df_for_titlechart.loc[mask]
 
                 for index, row in df_for_titlechart.iterrows():
@@ -419,9 +418,13 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
     [dash.dependencies.Input('countries-drop-down', 'value'),
      Input('filter_time', 'value'),
      Input("rangeslider-dates", "value"),
+     Input("div-hidden-div-for-rangeslider", "children"),
      dash.dependencies.Input('categories-drop-down', 'value')])
-def update_graph(regionInput, timeInput, slider_interval, categoryInput):
-    #date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
+def update_graph(regionInput, timeInput, slider_interval, date_string_from_hidden_rangeslider_div, categoryInput):
+    date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
+    if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
+        date_lower = df.trending_date.min()
+        date_upper = df.trending_date.max()
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
 
@@ -486,8 +489,10 @@ def update_graph(regionInput, timeInput, slider_interval, categoryInput):
             title_font=dict(size=15, family='Verdana', color='black'),
             tickfont=dict(family='Calibri', color='black', size=12),
             rangeslider_visible=True,
+            range=[date_lower, date_upper],
             rangeslider=dict(
-                autorange=True
+                autorange=True,
+                range=[date_lower, date_upper]
             )
         )
 
@@ -541,7 +546,7 @@ def update_title_chart(input_countries, input_categories, slider_interval, date_
         'easing': 'cubic-in-out'
     })
     fig.update_yaxes(
-        title_text="Number of videos(%)", range=(0, 100),
+        title_text="Number of videos(%)", range=(0.0, 100), autorange=True,
         title_font=dict(size=15, family='Verdana', color='black'),
         tickfont=dict(family='Calibri', color='black', size=12))
     fig.update_layout(
@@ -569,19 +574,22 @@ def settext(slider_interval):
     Input("countries-drop-down", "value"),
     Input("categories-drop-down", "value"),
     Input("rangeslider-dates", "value"),
+    Input("div-hidden-div-for-rangeslider", "children"),
     Input("div-hidden-div-for-category-clicked", "children"),
     Input("div-hidden-div-for-tagchart", "children"))
-def update_tags_chart(input_countries, input_categories, slider_interval, category_selected_from_stacked_area_chart,
-                      selected_from_title_chart):
+def update_tags_chart(input_countries, input_categories, slider_interval, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart):
     print("Callback for tag chart has been called")
+    date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
+    date_lower_string = date_lower[0:10] + "  00:00:00+00:00"
+    date_upper_string = date_upper[0:10] + "  00:00:00+00:00"
     if not debugging:
         input_categories_array = input_categories
         if category_selected_from_stacked_area_chart != "":
             input_categories_array = [category_selected_from_stacked_area_chart]
         top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries,
                                      categories=input_categories_array,
-                                     startdate=pd.to_datetime(unique_dates[slider_interval[0]]),
-                                     enddate=pd.to_datetime(unique_dates[slider_interval[1] - 1]),
+                                     startdate=pd.to_datetime(date_lower_string),
+                                     enddate=pd.to_datetime(date_upper_string),
                                      title_filter_string=selected_from_title_chart)
 
         fig = go.Figure(
