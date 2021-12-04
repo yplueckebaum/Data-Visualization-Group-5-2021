@@ -39,7 +39,7 @@ class CoOccurrence:
         for index, row in self.df.iterrows():
             if row['tagged']:
                 for tag in row['tags'].split("|"):
-                    unique_tags.append(tag)
+                    unique_tags.append(tag.lower())
         self.unique_tags = list(set(unique_tags))
         self.number_of_tags = len(self.unique_tags)
         self.tags_dict = {self.unique_tags[i]: i for i in range(0, len(self.unique_tags))}

@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################################# IMPORTS
-import json
 import datetime
+import os
+from collections import Counter
+from os.path import exists
+
 import dash
+import dash_bootstrap_components as dbc
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 from dash import dcc
 from dash import html
-import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
-import plotly.graph_objects as go
-from collections import Counter
 import plotly.express as px
-import pandas as pd
-import numpy as np
-from os.path import exists
-import os
-import _pickle as cPickle
-from flask import send_from_directory
+
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
-debugging = True
+debugging = False
 
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
@@ -115,10 +114,10 @@ SIDEBAR_STYLE = {
 
 # the style arguments for the main content page.
 CONTENT_STYLE = {
-    'margin-left': '25%',
+    'margin-left': '30%',
     'margin-right': '5%',
-    'padding': '20px 10p'
-
+    'padding': '20px 10p',
+    'width': '55%'
 }
 
 TEXT_STYLE = {
@@ -189,17 +188,17 @@ if not already_loaded_dataset_and_set_up_variables:
     for i in available_categories:
         categories_list.append({'label': i, 'value': i})
 
-    if not debugging:
-        print("Setting up cooccurrence")
-        cooccurrence = CoOccurrence()
-        cooccurrence.setup(debugging, df_from_dashboard=df)
-        print("Finished setting up cooccurrence")
 
-        print("Setting up cooccurrence dictionary from pickle")
-        with open("./occurrence.pickle", 'rb') as handle:
-            cooccurrence.tags_occurrence_dict = np.load(handle, allow_pickle=True)
-        occurrence_df = pd.DataFrame.from_dict(cooccurrence.tags_occurrence_dict, orient='index')
-        print("Finished setting up cooccurrence dictionary from pickle")
+    print("Setting up cooccurrence")
+    cooccurrence = CoOccurrence()
+    cooccurrence.setup(debugging, df_from_dashboard=df)
+    print("Finished setting up cooccurrence")
+
+    print("Setting up cooccurrence dictionary from pickle")
+    with open("./occurrence.pickle", 'rb') as handle:
+        cooccurrence.tags_occurrence_dict = np.load(handle, allow_pickle=True)
+    occurrence_df = pd.DataFrame.from_dict(cooccurrence.tags_occurrence_dict, orient='index')
+    print("Finished setting up cooccurrence dictionary from pickle")
 
     end = datetime.datetime.now()
     print("It took " + str(
@@ -246,20 +245,41 @@ sidebar = html.Div(
     style=SIDEBAR_STYLE,
 )
 
+"""content_first_row = dbc.Row(
+    [
+        dbc.Col(
+            dcc.Graph(id='stacked-area-chart', style={"height": "100%"}), style={"border": "1px solid black", "height":"200%"}, md=8
+        ),
+        dbc.Col(
+            [
+            html.Div(children=[dcc.Graph(id='title-bar-chart')], style={"border": "1px solid black", "height":"50%"}),
+            html.Div(children=[dcc.Graph(id='tags-chart')], style={"border": "1px solid black", "height":"50%"})], md=4
+        )
+    ]
+)"""
+
 content_first_row = dbc.Row(
     [
         dbc.Col(
-            dcc.Graph(id='stacked-area-chart'), md=4
+            dcc.Graph(id='stacked-area-chart', style={"height": "100%"}), md=8
         ),
         dbc.Col(
-            html.Div(children=[dcc.Graph(id='title-bar-chart')]),
-            md=4
-        ),
-        dbc.Col(
-            dcc.Graph(id='tags-chart'), md=4
+            [
+                dbc.Row(
+                    dbc.Col(
+                        dcc.Graph(id='title-bar-chart'), md=12
+                    )
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        dcc.Graph(id='tags-chart'), md=12
+                    )
+                )
+            ], md=4
         )
     ]
 )
+
 
 content_third_row = dbc.Row(
     [
@@ -279,6 +299,9 @@ content_fourth_row = dbc.Row(
         ),
         dbc.Col(
             html.Div(id='div-hidden-div-for-rangeslider'), md=12
+        ),
+        dbc.Col(
+            html.Div(id='div-hidden-div-for-tag-clicked'), md=12
         )
     ]
 )
@@ -384,7 +407,11 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
     if title_filter_string != "":
         title_chart_string_to_array = title_filter_string.split("|")
         title_chart_column = title_chart_string_to_array[0]
-        title_chart_boolean = bool(title_chart_string_to_array[1])
+        title_chart_boolean_string = title_chart_string_to_array[1]
+        if title_chart_boolean_string == "True":
+            title_chart_boolean = True
+        else:
+            title_chart_boolean = False
         values = cooccurrence.df.loc[(cooccurrence.df["region"].isin(regions)) & (cooccurrence.df["tagged"]) & (
             cooccurrence.df["category_text"].isin(categories)) & (
                                                  pd.to_datetime(cooccurrence.df["trending_date"]) >= startdate) & (
@@ -400,7 +427,7 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
                                          range(0, len(cooccurrence.unique_tags))}
     for tags in values:
         for tag in tags.split("|"):
-            cooccurrence.tags_occurrence_dict[tag] += 1
+            cooccurrence.tags_occurrence_dict[tag.lower()] += 1
     return dict(Counter(cooccurrence.tags_occurrence_dict).most_common(n))
 
 
@@ -410,15 +437,19 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
     [dash.dependencies.Input('countries-drop-down', 'value'),
      Input('filter_time', 'value'),
      Input("div-hidden-div-for-rangeslider", "children"),
-     dash.dependencies.Input('categories-drop-down', 'value')],
-    prevent_initial_call=True)
-def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div, categoryInput):
+     dash.dependencies.Input('categories-drop-down', 'value'),
+     Input("div-hidden-div-for-category-clicked", "children")])
+def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div, categoryInput, category_selected_from_stacked_area_chart):
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
         date_lower = df.trending_date.min()
         date_upper = df.trending_date.max()
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
+
+    title_suffix = " <br> (Click to select)"
+    if category_selected_from_stacked_area_chart != "":
+        title_suffix = "<br>Selected: " + category_selected_from_stacked_area_chart
 
     selected_regions = regionInput
     selected_time_format = timeInput
@@ -455,23 +486,19 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
                 customdata=videos_that_match_count,
                 mode='lines',
                 name=categories,
-                line=dict(width=0.5, color=available_colors[color_count - 1]),
+                line=dict(width=0.5, color=available_colors[(color_count - 1) % 12]),
                 stackgroup='one'  # define stack group
                 # groupnorm='percent' # sets the normalization for the sum of the stackgroup
             ))
 
         fig.update_layout(
             # title = "Trending YouTube data for " + str(selected_regions) + " in " + str(selected_categories),
-            title="Categories",
-            title_font_size=20, legend_font_size=10,
+            title="1. Categories" + title_suffix,
+            title_font_size=18, legend_font_size=10,
             showlegend=True,
             hovermode="closest",
             hoverdistance=500,
-            yaxis=dict(type='linear', ticksuffix='%'),
-            transition={
-                'duration': 500,
-                'easing': 'cubic-in-out'
-            }
+            yaxis=dict(type='linear', ticksuffix='%')
         )
 
         fig.update_xaxes(
@@ -483,7 +510,8 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
             rangeslider=dict(
                 autorange=True,
                 range=[date_lower, date_upper]
-            )
+            ),
+            type="date"
         )
 
         fig.update_yaxes(
@@ -512,16 +540,36 @@ def rangeslider_on_change(relayoutdata):
     Input("categories-drop-down", "value"),
     Input("div-hidden-div-for-rangeslider", "children"),
     Input("div-hidden-div-for-category-clicked", "children"),
+    Input("div-hidden-div-for-tagchart", "children"),
     prevent_initial_call=True)
-def update_title_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart):
+def update_title_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart):
     print("Callback for title chart has been called")
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     input_categories_array = input_categories
+    title_suffix = ""
     if category_selected_from_stacked_area_chart != "":
         input_categories_array = [category_selected_from_stacked_area_chart]
-    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(
-        input_countries, input_categories_array, date_lower, date_upper)
+        title_suffix = " in " + category_selected_from_stacked_area_chart + "<br>(Click to select)"
 
+    if category_selected_from_stacked_area_chart != "" and selected_from_title_chart != "":
+        title_prefix = " in " + category_selected_from_stacked_area_chart
+        title_middle = "<br>Selected: "
+        title_selection_array = selected_from_title_chart.split("|")
+        title_selection_column = title_selection_array[0]
+        title_selection_boolean = title_selection_array[1]
+        title_end = ""
+        if title_selection_boolean == "False":
+            title_end += "no "
+        if title_selection_column == "did_use_parens":
+            title_end += "use of () or []"
+        if title_selection_column == "did_use_caps":
+            title_end += "use of words in caps"
+        if title_selection_column == "did_use_emojis":
+            title_end += "use of emojis"
+
+        title_suffix = title_prefix + title_middle + " " + title_end.capitalize()
+
+    total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(input_countries, input_categories_array, date_lower, date_upper)
     fig = go.Figure()
     fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
                          y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], width=[0.6, 0.6, 0.6], marker_color='rgb(44, 127, 184)'))
@@ -541,8 +589,8 @@ def update_title_chart(input_countries, input_categories, date_string_from_hidde
         tickfont=dict(family='Calibri', color='black', size=12)
     )
     fig.update_layout(
-        title="Titles",
-        title_font_size=20, legend_font_size=10,
+        title="2. Titles" + title_suffix,
+        title_font_size=18, legend_font_size=10,
         showlegend=True,
         yaxis=dict(type='linear', ticksuffix='%'))
 
@@ -566,13 +614,38 @@ def settext(slider_interval):
     Input("categories-drop-down", "value"),
     Input("div-hidden-div-for-rangeslider", "children"),
     Input("div-hidden-div-for-category-clicked", "children"),
-    Input("div-hidden-div-for-tagchart", "children"))
-def update_tags_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart):
+    Input("div-hidden-div-for-tagchart", "children"),
+    Input('div-hidden-div-for-tag-clicked', 'children'))
+def update_tags_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart, selected_from_tags_chart):
     print("Callback for tag chart has been called")
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
-    date_lower_string = date_lower[0:10] + "  00:00:00+00:00"
+    date_lower_string = date_lower[0:10] + "  00:00:00+00:00" #HACKEDY HACK, MOTHERFUCKER!
     date_upper_string = date_upper[0:10] + "  00:00:00+00:00"
-    if not debugging:
+
+    title_suffix = ""
+    if category_selected_from_stacked_area_chart != "":
+        title_suffix = " in " + category_selected_from_stacked_area_chart
+
+    if category_selected_from_stacked_area_chart != "" and selected_from_title_chart != "":
+        title_suffix += " with"
+        title_selection_array = selected_from_title_chart.split("|")
+        title_selection_column = title_selection_array[0]
+        title_selection_boolean = title_selection_array[1]
+        if title_selection_boolean == "False":
+            title_suffix += " no"
+        if title_selection_column == "did_use_parens":
+            title_suffix += " use of () or []"
+        if title_selection_column == "did_use_caps":
+            title_suffix += " use of words in caps"
+        if title_selection_column == "did_use_emojis":
+            title_suffix += " use of emojis"
+
+        if selected_from_tags_chart == "":
+            title_suffix += "<br>(Click to select)"
+        else:
+            title_suffix += "<br>Selected: " + selected_from_tags_chart
+
+    if True:
         input_categories_array = input_categories
         if category_selected_from_stacked_area_chart != "":
             input_categories_array = [category_selected_from_stacked_area_chart]
@@ -581,16 +654,23 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
                                      startdate=pd.to_datetime(date_lower_string),
                                      enddate=pd.to_datetime(date_upper_string),
                                      title_filter_string=selected_from_title_chart)
+        fig = px.bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()),
+               color=list(top_n_tags_dict.values()), color_discrete_sequence=px.colors.sequential.Viridis)
 
-        fig = go.Figure(
-            go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker_color='rgb(44, 127, 184)'))
+
+        #fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker=dict(color = list(top_n_tags_dict.values()), colorscale='viridis')))
 
         fig.update_layout(
-            title="Tags",
-            title_font_size=20, legend_font_size=10,
+            title="3. Tags" + title_suffix,
+            title_font_size=18, legend_font_size=10,
             showlegend=True,
             hovermode="closest",
             yaxis=dict(type='linear'))
+
+        fig.update_layout(transition={
+            'duration': 500,
+            'easing': 'cubic-in-out'
+        })
 
         fig.update_xaxes(
             title_text='Tags',
@@ -602,11 +682,26 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
             title_font=dict(size=15, family='Verdana', color='black'),
             tickfont=dict(family='Calibri', color='black', size=12))
 
-        fig.update_layout(showlegend=False)
-
         return fig
     else:
-        return go.Figure(go.Bar(x=["Debugging"], y=[20], marker_color='rgb(44, 127, 184)'))
+        fig_debug = go.Figure(go.Bar(x=["Debugging"], y=[20], marker_color='rgb(44, 127, 184)'))
+        fig_debug.update_layout(
+            title="3. Tags" + title_suffix,
+            title_font_size=18, legend_font_size=10,
+            showlegend=True,
+            hovermode="closest",
+            yaxis=dict(type='linear'))
+
+        fig_debug.update_xaxes(
+            title_text='Tags',
+            title_font=dict(size=15, family='Verdana', color='black'),
+            tickfont=dict(family='Calibri', color='black', size=12))
+
+        fig_debug.update_yaxes(
+            title_text="Number of videos",
+            title_font=dict(size=15, family='Verdana', color='black'),
+            tickfont=dict(family='Calibri', color='black', size=12))
+        return fig_debug
 
 
 @app.callback(
@@ -641,6 +736,16 @@ def title_chart_on_click(clickdata):
     else:
         return ""
 
+@app.callback(
+    Output('div-hidden-div-for-tag-clicked', 'children'),
+    Input('tags-chart', 'clickData'))
+def tags_chart_on_click(clickdata):
+    if clickdata is not None:
+        points = clickdata['points']
+        label = points[0]['label']
+        return label
+    else:
+        return ""
 
 print("-------------------> The application is running")
 already_loaded_dataset_and_set_up_variables = True
