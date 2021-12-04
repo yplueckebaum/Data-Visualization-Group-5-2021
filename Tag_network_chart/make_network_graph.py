@@ -1,17 +1,22 @@
 import plotly.graph_objects as go
-
+from plotly.validators.scatter.marker import SymbolValidator
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 from Data_processing.Coocurrence.cooccurrence import CoOccurrence
 
 
-def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, highlighted_point, edge_degree_min=5):
+def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, highlighted_point, edge_degree_min=2):
     # import graph
     G = graph  # nx.random_geometric_graph(200, 0.125)
     # decide whether or not to plot data points or clusters
     # in case of edges generate x and y of edges
     # None acts as seperator
+    unprocessed_symbols = SymbolValidator().values
+    symbols = []
+    for i in range(0, len(unprocessed_symbols), 3):
+        symbols.append(unprocessed_symbols[i])
+    elements = symbols[:100]
 
     # safe x and y of nodes
     node_x = []
@@ -20,6 +25,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
     size_dict = cooccurrence.normalize_by_occurrence()
     edge_nodes = {i: False for i in G.nodes}
     node_degree = []
+    node_symbol = []
 
     if node_selection:
         nodes = [cooccurrence.tags_dict[node_selection[i]] for i in range(len(node_selection))]
@@ -35,6 +41,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
         node_text.append(cooccurrence.tags_dict_inverse[node])
 
         node_degree.append(G.degree(node))  # todo ?
+        node_symbol.append(elements[cooccurrence.partition[node]])
     if node_selection:
         displayed_tags = list({i: (node_text[i] if node_text[i] in node_selection else "") for i in
                                range(len(node_text))}.values())  # todo terrible terrible coding #todo THIS IS IT
@@ -72,14 +79,15 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
         hoverinfo='text',
         hovertext=node_text,
         customdata=node_text,
+        marker_symbol=node_symbol,
         marker=dict(
             showscale=True,
             # colorscale options
             # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
             # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
             # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-            colorscale='YlGnBu',
-            reversescale=True,
+            colorscale='Viridis',
+            reversescale=False,
             color=[],
             size=10,
             colorbar=dict(
@@ -88,7 +96,8 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
                 xanchor='left',
                 titleside='right'
             ),
-            line_width=2))
+            line=dict(width=2,
+                      color='Black')))
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,

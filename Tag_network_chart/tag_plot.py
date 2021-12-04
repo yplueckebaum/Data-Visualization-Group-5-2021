@@ -16,6 +16,7 @@ from Tag_network_chart.make_network_graph import make_network_fig
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
 app.title = "Tag network"
 
 app = dash.Dash(__name__)
@@ -23,6 +24,7 @@ app = dash.Dash(__name__)
 cooccurrence = CoOccurrence()
 cooccurrence.generate_occurrences(dtype_co_occurrence=np.uint32)  # network viz master is the cwd for some reason
 cooccurrence.generate_graph()
+cooccurrence.generate_partition()
 
 layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
 # fig = go.Figure(data=[go.Figure])
@@ -32,7 +34,7 @@ layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
 app.layout = html.Div([
     dcc.Graph(
         id='tag_network_graph',
-        figure=make_network_fig(cooccurrence.tag_graph, cooccurrence, [], layout, None, 0)
+        figure=make_network_fig(cooccurrence.tag_graph, cooccurrence, [], layout, None)
     ),
     dcc.Markdown(
         html.Pre(id="click_data")
@@ -82,7 +84,7 @@ def redraw_fig(selectedData, value):  # shit name
     elif trigger == "tag_network_graph":
         if selectedData:
             selectedPoints = [selectedData["points"][i]["customdata"] for i in range(len(selectedData["points"]))]
-    return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None, 0)
+    return make_network_fig(cooccurrence.tag_graph, cooccurrence, selectedPoints, layout, None)
 
 
 @app.callback(
