@@ -20,7 +20,7 @@ from flask import send_from_directory
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
-debugging = False
+debugging = True
 
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
@@ -249,18 +249,10 @@ sidebar = html.Div(
 content_first_row = dbc.Row(
     [
         dbc.Col(
-            dcc.Graph(id='stacked-area-chart', className="TETSTTSTSTS"), md=4
+            dcc.Graph(id='stacked-area-chart'), md=4
         ),
         dbc.Col(
-            html.Div(children=[dcc.Graph(id='title-bar-chart'), dcc.RangeSlider(
-                id="rangeslider-dates",
-                min=0,
-                max=no_of_unique_dates,
-                updatemode='mouseup',
-                step=1,
-                value=[0, no_of_unique_dates],
-                pushable=2), html.Div(id='div-date-strings-for-rangeslider',
-                                      style={"text-align": "center", "display": "inline-block", "width": "100%"})]),
+            html.Div(children=[dcc.Graph(id='title-bar-chart')]),
             md=4
         ),
         dbc.Col(
@@ -324,7 +316,7 @@ def find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangesli
         return min_date_string, max_date_string
 
 
-def update_data_for_titlechart(input_countries, input_categories, slider_interval, date_lower, date_upper):
+def update_data_for_titlechart(input_countries, input_categories, date_lower, date_upper):
     date_lower_only_date = date_lower[0:10]
     date_upper_only_date = date_upper[0:10]
     total_titles = 0
@@ -417,10 +409,10 @@ def top_n_tags(cooccurrence, regions, categories, startdate, enddate, title_filt
     dash.dependencies.Output('stacked-area-chart', 'figure'),
     [dash.dependencies.Input('countries-drop-down', 'value'),
      Input('filter_time', 'value'),
-     Input("rangeslider-dates", "value"),
      Input("div-hidden-div-for-rangeslider", "children"),
-     dash.dependencies.Input('categories-drop-down', 'value')])
-def update_graph(regionInput, timeInput, slider_interval, date_string_from_hidden_rangeslider_div, categoryInput):
+     dash.dependencies.Input('categories-drop-down', 'value')],
+    prevent_initial_call=True)
+def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div, categoryInput):
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
         date_lower = df.trending_date.min()
@@ -434,10 +426,7 @@ def update_graph(regionInput, timeInput, slider_interval, date_string_from_hidde
 
     fig = go.Figure()
     if selected_regions:
-        total_videos_for_region = df.loc[(df.region.isin(selected_regions)) & (
-                    df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (
-                                                     df.trending_date <= pd.to_datetime(
-                                                 unique_dates[slider_interval[1] - 1])), selected_time_format]
+        total_videos_for_region = df.loc[(df.region.isin(selected_regions)), selected_time_format]
         # videos_that_match = df.loc[(df.category_text.isin(selected_categories)) & (df.region.isin(selected_regions)) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1] - 1])), selected_time_format]
         total_videos_for_region = total_videos_for_region.value_counts()
         total_videos_for_region = total_videos_for_region.sort_index()
@@ -446,10 +435,7 @@ def update_graph(regionInput, timeInput, slider_interval, date_string_from_hidde
             region_count = 0
             for region in selected_regions:
                 # total_videos_for_region = df.loc[(df.region == region) & (df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (df.trending_date <= pd.to_datetime(unique_dates[slider_interval[1] - 1])), selected_time_format]
-                videos_that_match = df.loc[(df.category_text == categories) & (df.region == region) & (
-                            df.trending_date >= pd.to_datetime(unique_dates[slider_interval[0]])) & (
-                                                       df.trending_date <= pd.to_datetime(
-                                                   unique_dates[slider_interval[1] - 1])), selected_time_format]
+                videos_that_match = df.loc[(df.category_text == categories) & (df.region == region), selected_time_format]
                 if (region_count == 0):
                     videos_that_match_count = videos_that_match.value_counts()
                     region_count += 1;
@@ -481,7 +467,11 @@ def update_graph(regionInput, timeInput, slider_interval, date_string_from_hidde
             showlegend=True,
             hovermode="closest",
             hoverdistance=500,
-            yaxis=dict(type='linear', ticksuffix='%')
+            yaxis=dict(type='linear', ticksuffix='%'),
+            transition={
+                'duration': 500,
+                'easing': 'cubic-in-out'
+            }
         )
 
         fig.update_xaxes(
@@ -520,35 +510,36 @@ def rangeslider_on_change(relayoutdata):
     Output('title-bar-chart', 'figure'),
     Input("countries-drop-down", "value"),
     Input("categories-drop-down", "value"),
-    Input("rangeslider-dates", "value"),
     Input("div-hidden-div-for-rangeslider", "children"),
-    Input("div-hidden-div-for-category-clicked", "children"))
-def update_title_chart(input_countries, input_categories, slider_interval, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart):
+    Input("div-hidden-div-for-category-clicked", "children"),
+    prevent_initial_call=True)
+def update_title_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart):
     print("Callback for title chart has been called")
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     input_categories_array = input_categories
     if category_selected_from_stacked_area_chart != "":
         input_categories_array = [category_selected_from_stacked_area_chart]
     total_titles, did_use_par_or_bracks, did_use_caps, did_use_emojis, did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis = update_data_for_titlechart(
-        input_countries, input_categories_array, slider_interval, date_lower, date_upper)
+        input_countries, input_categories_array, date_lower, date_upper)
 
     fig = go.Figure()
     fig.add_trace(go.Bar(name="Yes", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
-                         y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], marker_color='rgb(44, 127, 184)'))
+                         y=[did_use_par_or_bracks, did_use_caps, did_use_emojis], width=[0.6, 0.6, 0.6], marker_color='rgb(44, 127, 184)'))
     fig.add_trace(go.Bar(name="No", x=['Did use () or []', 'Did use CAPS', 'Did use emojis'],
-                         y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis],
+                         y=[did_not_use_par_or_bracks, did_not_use_caps, did_not_use_emojis], width=[0.6, 0.6, 0.6],
                          marker_color='rgb(254, 178, 76)'))
 
     fig.update_layout(barmode='stack')
-    fig.update_layout(yaxis_range=(0, 100))
+    fig.update_layout(yaxis_range=(0.0, 100.0))
     fig.update_layout(transition={
         'duration': 500,
         'easing': 'cubic-in-out'
     })
     fig.update_yaxes(
-        title_text="Number of videos(%)", range=(0.0, 100), autorange=True,
+        title_text="Number of videos(%)", range=(0.0, 100.0), autorange=True,
         title_font=dict(size=15, family='Verdana', color='black'),
-        tickfont=dict(family='Calibri', color='black', size=12))
+        tickfont=dict(family='Calibri', color='black', size=12)
+    )
     fig.update_layout(
         title="Titles",
         title_font_size=20, legend_font_size=10,
@@ -558,12 +549,12 @@ def update_title_chart(input_countries, input_categories, slider_interval, date_
     return fig
 
 
-@app.callback(
+"""@app.callback(
     Output('div-date-strings-for-rangeslider', 'children'),
     Input('rangeslider-dates', 'value'))
 def settext(slider_interval):
     print("Callback for range slider has been called")
-    return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]
+    return unique_dates[slider_interval[0]][0:10] + " - " + unique_dates[slider_interval[1] - 1][0:10]"""
 
 
 
@@ -573,11 +564,10 @@ def settext(slider_interval):
     Output('tags-chart', 'figure'),
     Input("countries-drop-down", "value"),
     Input("categories-drop-down", "value"),
-    Input("rangeslider-dates", "value"),
     Input("div-hidden-div-for-rangeslider", "children"),
     Input("div-hidden-div-for-category-clicked", "children"),
     Input("div-hidden-div-for-tagchart", "children"))
-def update_tags_chart(input_countries, input_categories, slider_interval, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart):
+def update_tags_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart):
     print("Callback for tag chart has been called")
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
     date_lower_string = date_lower[0:10] + "  00:00:00+00:00"
