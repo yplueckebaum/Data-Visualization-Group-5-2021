@@ -22,13 +22,15 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
     node_x = []
     node_y = []
     node_text = []
-    size_dict = cooccurrence.normalize_by_occurrence()
     edge_nodes = {i: False for i in G.nodes}
     node_degree = []
     node_symbol = []
 
     if node_selection:
-        nodes = [cooccurrence.tags_dict[node_selection[i]] for i in range(len(node_selection))]
+        try:
+            nodes = [cooccurrence.tags_dict[node_selection[i]] for i in range(len(node_selection))]
+        except:
+            nodes = []
         for node in nodes:
             if G.degree(node) >= edge_degree_min:
                 edge_nodes[node] = True
