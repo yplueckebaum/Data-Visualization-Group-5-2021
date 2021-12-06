@@ -90,16 +90,12 @@ def redraw_fig(selectedData, value):  # shit name
 @app.callback(
     Output(component_id="click-info", component_property="children"),
     Input(component_id="tag_network_graph", component_property="clickData")
-) #todo make table
+)  # todo make table
 def selection_info(clickData):
-    top_5 = ["https://youtu.be/" + cooccurrence.df.sample()["video_id"] for i in range(5)]  # todo make actual top 5
-    output = f"""
-1. {top_5[0]}
-2. {top_5[1]}
-3. {top_5[2]}
-4. {top_5[3]}
-5. {top_5[4]}
-    """
+    tag = clickData["points"][0]["customdata"]
+    most_viewed = list(cooccurrence.df.loc[list([tag in cooccurrence.df["tags"][i].split("|") for i in range(cooccurrence.df.shape[0])]),["video_id","view_count"]].sort_values("view_count")["video_id"])
+    top_5 = most_viewed if len(most_viewed) < 5 else most_viewed[:5]
+    output = ["https://www.youtube.com/watch?v=" + elem for elem in top_5]
     return output
 
 
