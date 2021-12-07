@@ -21,7 +21,7 @@ from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence as CoOc
 from Data_processing.Coocurrence.cooccurrence import CoOccurrence
 from Tag_network_chart.make_network_graph import make_network_fig
 
-debugging = False
+debugging = True
 
 ################################################################################################# DATA STRUCTURES
 print("-------------------> Loading data structures")
@@ -531,8 +531,8 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
             rangeslider_visible=True,
             range=[date_lower, date_upper],
             rangeslider=dict(
-                autorange=True,
-                range=[date_lower, date_upper]
+                autorange=True
+                #range=[date_lower, date_upper]
             ),
             type="date"
         )
@@ -609,10 +609,16 @@ def update_title_chart(input_countries, input_categories, date_string_from_hidde
         'duration': 500,
         'easing': 'cubic-in-out'
     })
+
+    fig.update_xaxes(
+        tickfont=dict(family='Calibri', color='black', size=12),
+        tickangle=45
+    )
     fig.update_yaxes(
         title_text="Number of videos(%)", range=(0.0, 100.0), autorange=True,
         title_font=dict(size=15, family='Verdana', color='black'),
-        tickfont=dict(family='Calibri', color='black', size=12)
+        tickfont=dict(family='Calibri', color='black', size=12),
+        rangemode="nonnegative"
     )
     fig.update_layout(
         title="2. Titles" + title_suffix,
@@ -678,8 +684,10 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
                                      startdate=pd.to_datetime(date_lower_string),
                                      enddate=pd.to_datetime(date_upper_string),
                                      title_filter_string=selected_from_title_chart)
-        fig = px.bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()),
-                     color=list(top_n_tags_dict.values()), color_discrete_sequence=px.colors.sequential.Viridis)
+        fig = px.bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), color=list(top_n_tags_dict.values()), color_discrete_sequence=px.colors.sequential.Viridis)
+
+        for data in fig.data: # FUCKING WHAT!
+            data["width"] = 0.65
 
         # fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker=dict(color = list(top_n_tags_dict.values()), colorscale='viridis')))
 
@@ -698,12 +706,14 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
         fig.update_xaxes(
             title_text='Tags',
             title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
+            tickfont=dict(family='Calibri', color='black', size=12),
+            tickangle=45)
 
         fig.update_yaxes(
             title_text="Number of videos",
             title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
+            tickfont=dict(family='Calibri', color='black', size=12),
+            rangemode="nonnegative")
 
         return fig
     else:
@@ -795,9 +805,11 @@ def update_fig(selectedData):
 @app.callback(
     Output(component_id="tag_network_graph", component_property="figure"),
     Input(component_id="tag_network_graph", component_property="selectedData"),
-    Input(component_id="search-box", component_property="value")
+    Input(component_id="search-box", component_property="value"),
+    Input(component_id="div-hidden-div-for-tag-clicked", component_property="children")
 )
-def redraw_fig(selectedData, value):  # shit name
+def redraw_fig(selectedData, value, tag):
+    selectedData = tag
     ctx = dash.callback_context
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
     selectedPoints = []
@@ -814,14 +826,17 @@ def redraw_fig(selectedData, value):  # shit name
     Input(component_id="tag_network_graph", component_property="clickData")
 )  # todo make table
 def selection_info(clickData):
-    tag = clickData["points"][0]["customdata"]
-    most_viewed = list(cooccurrence2.df.loc[list(
-        [tag in cooccurrence2.df["tags"][i].split("|") for i in range(cooccurrence2.df.shape[0])]), ["video_id",
-                                                                                                   "view_count"]].sort_values(
-        "view_count")["video_id"])
-    top_5 = most_viewed if len(most_viewed) < 5 else most_viewed[:5]
-    output = ["https://www.youtube.com/watch?v=" + elem for elem in top_5]
-    return output
+    if clickData is not None:
+        tag = clickData["points"][0]["customdata"]
+        most_viewed = list(cooccurrence2.df.loc[list(
+            [tag in cooccurrence2.df["tags"][i].split("|") for i in range(cooccurrence2.df.shape[0])]), ["video_id",
+                                                                                                       "view_count"]].sort_values(
+            "view_count")["video_id"])
+        top_5 = most_viewed if len(most_viewed) < 5 else most_viewed[:5]
+        output = ["https://www.youtube.com/watch?v=" + elem for elem in top_5]
+        return output
+    else:
+        return ""
 
 
 print("-------------------> The application is running")
