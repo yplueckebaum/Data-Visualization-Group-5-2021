@@ -15,8 +15,9 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
     unprocessed_symbols = SymbolValidator().values
     symbols = []
     for i in range(0, len(unprocessed_symbols), 3):
-        symbols.append(unprocessed_symbols[i])
-    elements = symbols[:100]
+        if unprocessed_symbols[i] <= 33 or 200 <= unprocessed_symbols[i] <= 224:
+            symbols.append(unprocessed_symbols[i])
+    elements = symbols #todo this does not scale and elements = symbols
 
     # safe x and y of nodes
     node_x = []
