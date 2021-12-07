@@ -801,20 +801,22 @@ def update_fig(selectedData):
     except:  # not to broad motherfucker
         return 'Output: {}'.format("None")
 
-
 @app.callback(
     Output(component_id="tag_network_graph", component_property="figure"),
     Input(component_id="tag_network_graph", component_property="selectedData"),
     Input(component_id="search-box", component_property="value"),
-    Input(component_id="div-hidden-div-for-tag-clicked", component_property="children")
+    Input('tags-chart', 'clickData')
 )
-def redraw_fig(selectedData, value, tag):
-    selectedData = tag
+def redraw_fig(selectedData, searchData, clickData):
     ctx = dash.callback_context
     trigger = ctx.triggered[0]['prop_id'].split('.')[0]
+    if trigger == "search-box":
+        searched_tag = searchData
+    if trigger == "tags-chart":
+        searched_tag = clickData['points'][0]["label"]
     selectedPoints = []
-    if trigger == "search-box":  # todo bugs when not typing fast enough
-        selectedPoints = [str(value)]
+    if trigger == "search-box" or trigger == "tags-chart":  # todo bugs when not typing fast enough
+        selectedPoints = [str(searched_tag)]
     elif trigger == "tag_network_graph":
         if selectedData:
             selectedPoints = [selectedData["points"][i]["customdata"] for i in range(len(selectedData["points"]))]
