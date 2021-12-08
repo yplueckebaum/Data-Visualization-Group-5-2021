@@ -340,8 +340,8 @@ def find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangesli
 
 
 def update_data_for_titlechart(input_countries, input_categories, date_lower, date_upper):
-    date_lower_only_date = date_lower[0:10]
-    date_upper_only_date = date_upper[0:10]
+    date_lower_only_date = date_lower[0:10] + " 00:00:00+00:00"
+    date_upper_only_date = date_upper[0:10] + " 00:00:00+00:00"
     total_titles = 0
     did_use_par_or_bracks = 0
     did_use_caps = 0
@@ -350,48 +350,14 @@ def update_data_for_titlechart(input_countries, input_categories, date_lower, da
     did_not_use_caps = 0
     did_not_use_emojis = 0
 
-    for input_country in input_countries:
-        if len(input_categories) == 0:
-            if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
-                current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_title_totals.csv"
-                df_for_titlechart = pd.read_csv(current_data_set)
+    df_filtered = df.loc[(df.category_text.isin(input_categories)) & (df.region.isin(input_countries)) & (
+                df.trending_date >= pd.to_datetime(date_lower_only_date)) & (
+                                           df.trending_date <= pd.to_datetime(date_upper_only_date))]
+    total_titles = df_filtered.shape[0]
+    did_use_par_or_bracks = df_filtered.loc[(df_filtered['did_use_parens'] == True)].shape[0]
+    did_use_caps = df_filtered.loc[(df_filtered['did_use_caps'] == True)].shape[0]
+    did_use_emojis = df_filtered.loc[(df_filtered['did_use_emojis'] == True)].shape[0]
 
-                total_titles += np.array(df_for_titlechart.total_number_of_titles)[0]
-                did_use_par_or_bracks += np.array(df_for_titlechart.number_of_titles_with_parenthesis_or_squarebracket_usage)[0]
-                did_use_caps += np.array(df_for_titlechart.number_of_titles_with_caps_usage)[0]
-                did_use_emojis += np.array(df_for_titlechart.number_of_titles_with_emoji_usage)[0]
-            else:
-                current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_allcategories_totals_per_day.csv"
-                df_for_titlechart = pd.read_csv(current_data_set)
-                mask = (df_for_titlechart['date'] > date_lower) & (
-                            df_for_titlechart['date'] < date_upper)
-                df_for_titlechart = df_for_titlechart.loc[mask]
-
-                for index, row in df_for_titlechart.iterrows():
-                    total_titles += row['total_number_of_titles']
-                    did_use_par_or_bracks += row['number_of_titles_with_parenthesis_or_squarebracket_usage']
-                    did_use_caps += row['number_of_titles_with_caps_usage']
-                    did_use_emojis += row['number_of_titles_with_emoji_usage']
-        else:
-            for input_category in input_categories:
-                category_id = category_names_to_ids_dict[input_category]
-                current_data_set = "Dataset/Titledata/" + input_country + "/" + input_country + "_category" + str(
-                    category_id) + "_totals_per_day.csv"
-                file_exists = exists(current_data_set)
-                if file_exists:
-                    df_for_titlechart = pd.read_csv(current_data_set)
-                else:
-                    continue
-
-                mask = (df_for_titlechart['date'] > date_lower) & (
-                            df_for_titlechart['date'] < date_upper)
-                df_for_titlechart = df_for_titlechart.loc[mask]
-
-                for index, row in df_for_titlechart.iterrows():
-                    total_titles += row['total_number_of_titles']
-                    did_use_par_or_bracks += row['number_of_titles_with_parenthesis_or_squarebracket_usage']
-                    did_use_caps += row['number_of_titles_with_caps_usage']
-                    did_use_emojis += row['number_of_titles_with_emoji_usage']
     did_use_par_or_bracks = (did_use_par_or_bracks / total_titles) * 100 if total_titles > 0 else 0
     did_use_caps = (did_use_caps / total_titles) * 100 if total_titles > 0 else 0
     did_use_emojis = (did_use_emojis / total_titles) * 100 if total_titles > 0 else 0
@@ -619,8 +585,8 @@ def settext(slider_interval):
 def update_tags_chart(input_countries, input_categories, date_string_from_hidden_rangeslider_div, category_selected_from_stacked_area_chart, selected_from_title_chart, selected_from_tags_chart):
     print("Callback for tag chart has been called")
     date_lower, date_upper = find_lower_and_upper_dates_from_rangeslider(date_string_from_hidden_rangeslider_div)
-    date_lower_string = date_lower[0:10] + "  00:00:00+00:00" #HACKEDY HACK, MOTHERFUCKER!
-    date_upper_string = date_upper[0:10] + "  00:00:00+00:00"
+    date_lower_string = date_lower[0:10] + " 00:00:00+00:00" #HACKEDY HACK, MOTHERFUCKER!
+    date_upper_string = date_upper[0:10] + " 00:00:00+00:00"
 
     title_suffix = ""
     if category_selected_from_stacked_area_chart != "":
