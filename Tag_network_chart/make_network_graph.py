@@ -113,7 +113,7 @@ def make_network_fig(graph, cooccurrence: CoOccurrence, node_selection, layout, 
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title='',
+                        title="4. Tag network",
                         showlegend=False,
                         hovermode='closest',
                         margin=dict(b=20, l=5, r=5, t=40),
