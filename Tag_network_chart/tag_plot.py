@@ -26,7 +26,7 @@ cooccurrence.generate_occurrences(dtype_co_occurrence=np.uint32)  # network viz 
 cooccurrence.generate_graph()
 cooccurrence.generate_partition()
 
-layout = nx.drawing.layout.kamada_kawai_layout(G=cooccurrence.tag_graph)
+layout = nx.drawing.layout.spring_layout(G=cooccurrence.tag_graph)
 # fig = go.Figure(data=[go.Figure])
 # go.Scatter(x=[1, 2, 3], y=[4, 1, 2])])
 
