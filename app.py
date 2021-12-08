@@ -15,7 +15,7 @@ from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output, State
 import plotly.express as px
-
+from dash import callback_context
 
 from Data_processing.cooccurrencefolder.cooccurrence import CoOccurrence
 
@@ -258,6 +258,14 @@ sidebar = html.Div(
     ]
 )"""
 
+content_zeroth_row = dbc.Row(
+    [
+        dbc.Col(
+            dbc.Button('Clear selection', id='button-clear-selection', n_clicks=0, className="btn btn-light float-right"), md=12
+        )
+    ]
+)
+
 content_first_row = dbc.Row(
     [
         dbc.Col(
@@ -312,6 +320,7 @@ content = html.Div(
     [
         html.H2('Trending YouTube Dashboard', style=TEXT_STYLE),
         html.Hr(),
+        content_zeroth_row,
         content_first_row,
         content_third_row,
         content_fourth_row
@@ -674,8 +683,12 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
 @app.callback(
     Output('div-hidden-div-for-category-clicked', 'children'),
     Input('stacked-area-chart', 'clickData'),
+    Input('button-clear-selection', 'n_clicks'),
     State("categories-drop-down", "value"))
-def stacked_area_chart_on_click(clickdata, categories):
+def stacked_area_chart_on_click(clickdata, clearselectionbtn, categories):
+    changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+    if 'button-clear-selection' in changed_id:
+        return ""
     if clickdata is not None:
         points = clickdata['points']
         curve_number = points[0]['curveNumber']
@@ -687,8 +700,12 @@ def stacked_area_chart_on_click(clickdata, categories):
 
 @app.callback(
     Output('div-hidden-div-for-tagchart', 'children'),
-    Input('title-bar-chart', 'clickData'))
-def title_chart_on_click(clickdata):
+    Input('title-bar-chart', 'clickData'),
+    Input('button-clear-selection', 'n_clicks'))
+def title_chart_on_click(clickdata, clearselectionbtn):
+    changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+    if 'button-clear-selection' in changed_id:
+        return ""
     if clickdata is not None:
         points = clickdata['points']
         curve_number = points[0]['curveNumber']
@@ -705,8 +722,12 @@ def title_chart_on_click(clickdata):
 
 @app.callback(
     Output('div-hidden-div-for-tag-clicked', 'children'),
-    Input('tags-chart', 'clickData'))
-def tags_chart_on_click(clickdata):
+    Input('tags-chart', 'clickData'),
+    Input('button-clear-selection', 'n_clicks'))
+def tags_chart_on_click(clickdata, clearselectionbtn):
+    changed_id = [p['prop_id'] for p in callback_context.triggered][0]
+    if 'button-clear-selection' in changed_id:
+        return ""
     if clickdata is not None:
         points = clickdata['points']
         label = points[0]['label']
