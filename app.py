@@ -444,6 +444,9 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
             x = videos_that_match_count.index
             y_temp = (videos_that_match_count / total_videos_for_region) * 100
             y = y_temp.values
+            # Can calculate moving average like this, just insert y_series_rolling instead of y in add_trace
+            #y_series = pd.Series(y)
+            #y_series_rolling = y_series.rolling(10).mean()
 
             color_count += 1
             fig.add_trace(go.Scatter(
@@ -467,16 +470,22 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
             yaxis=dict(type='linear', ticksuffix='%')
         )
 
+        if timeInput == 'Days':
+            range_array = [date_lower, date_upper]
+        else:
+            range_array = [pd.to_datetime(min_date_string[0:7] + "-01 00:00:00+00:00"), pd.to_datetime(max_date_string[0:7] + "-01 00:00:00+00:00")]
+
         fig.update_xaxes(
             title_text='Date',
             title_font=dict(size=15, family='Verdana', color='black'),
             tickfont=dict(family='Calibri', color='black', size=12),
             rangeslider_visible=True,
-            range=[date_lower, date_upper],
+            range=range_array,
             rangeslider=dict(
                 autorange=True,
-                range=[date_lower, date_upper]
+                range=range_array
             ),
+            dtick="M1",
             type="date"
         )
 
