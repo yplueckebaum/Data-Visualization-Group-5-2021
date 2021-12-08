@@ -483,7 +483,7 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
             range=range_array,
             rangeslider=dict(
                 autorange=True,
-                range=range_array
+                #range=range_array
             ),
             dtick="M1",
             type="date"
@@ -558,10 +558,16 @@ def update_title_chart(input_countries, input_categories, date_string_from_hidde
         'duration': 500,
         'easing': 'cubic-in-out'
     })
+
+    fig.update_xaxes(
+        tickfont=dict(family='Calibri', color='black', size=12),
+        tickangle=45
+    )
     fig.update_yaxes(
         title_text="Number of videos(%)", range=(0.0, 100.0), autorange=True,
         title_font=dict(size=15, family='Verdana', color='black'),
-        tickfont=dict(family='Calibri', color='black', size=12)
+        tickfont=dict(family='Calibri', color='black', size=12),
+        rangemode="nonnegative"
     )
     fig.update_layout(
         title="2. Titles" + title_suffix,
@@ -620,63 +626,49 @@ def update_tags_chart(input_countries, input_categories, date_string_from_hidden
         else:
             title_suffix += "<br>Selected: " + selected_from_tags_chart
 
-    if True:
-        input_categories_array = input_categories
-        if category_selected_from_stacked_area_chart != "":
-            input_categories_array = [category_selected_from_stacked_area_chart]
-        top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries,
-                                     categories=input_categories_array,
-                                     startdate=pd.to_datetime(date_lower_string),
-                                     enddate=pd.to_datetime(date_upper_string),
-                                     title_filter_string=selected_from_title_chart)
-        fig = px.bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()),
-               color=list(top_n_tags_dict.values()), color_discrete_sequence=px.colors.sequential.Viridis)
+    input_categories_array = input_categories
+    if category_selected_from_stacked_area_chart != "":
+        input_categories_array = [category_selected_from_stacked_area_chart]
+    top_n_tags_dict = top_n_tags(cooccurrence=cooccurrence, regions=input_countries,
+                                 categories=input_categories_array,
+                                 startdate=pd.to_datetime(date_lower_string),
+                                 enddate=pd.to_datetime(date_upper_string),
+                                 title_filter_string=selected_from_title_chart)
+    fig = px.bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), color=list(top_n_tags_dict.values()), color_discrete_sequence=px.colors.sequential.Viridis)
 
+    for data in fig.data:  # FUCKING WHAT!
+        data["width"] = 0.65
 
-        #fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker=dict(color = list(top_n_tags_dict.values()), colorscale='viridis')))
+    #fig = go.Figure(go.Bar(x=list(top_n_tags_dict.keys()), y=list(top_n_tags_dict.values()), marker=dict(color = list(top_n_tags_dict.values()), colorscale='viridis')))
 
-        fig.update_layout(
-            title="3. Tags" + title_suffix,
-            title_font_size=18, legend_font_size=10,
-            showlegend=True,
-            hovermode="closest",
-            yaxis=dict(type='linear'))
+    fig.update_layout(
+        title="3. Tags" + title_suffix,
+        title_font_size=18, legend_font_size=10,
+        showlegend=True,
+        hovermode="closest",
+        yaxis=dict(type='linear'))
 
-        fig.update_layout(transition={
-            'duration': 500,
-            'easing': 'cubic-in-out'
-        })
+    fig.update_layout(transition={
+        'duration': 500,
+        'easing': 'cubic-in-out'
+    })
 
-        fig.update_xaxes(
-            title_text='Tags',
-            title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
+    fig.update_xaxes(
+        title_text='Tags',
+        title_font=dict(size=15, family='Verdana', color='black'),
+        tickfont=dict(family='Calibri', color='black', size=12),
+        tickangle=45
+    )
 
-        fig.update_yaxes(
-            title_text="Number of videos",
-            title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
+    fig.update_yaxes(
+        title_text="Number of videos",
+        title_font=dict(size=15, family='Verdana', color='black'),
+        tickfont=dict(family='Calibri', color='black', size=12),
+        rangemode="nonnegative"
+    )
 
-        return fig
-    else:
-        fig_debug = go.Figure(go.Bar(x=["Debugging"], y=[20], marker_color='rgb(44, 127, 184)'))
-        fig_debug.update_layout(
-            title="3. Tags" + title_suffix,
-            title_font_size=18, legend_font_size=10,
-            showlegend=True,
-            hovermode="closest",
-            yaxis=dict(type='linear'))
+    return fig
 
-        fig_debug.update_xaxes(
-            title_text='Tags',
-            title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
-
-        fig_debug.update_yaxes(
-            title_text="Number of videos",
-            title_font=dict(size=15, family='Verdana', color='black'),
-            tickfont=dict(family='Calibri', color='black', size=12))
-        return fig_debug
 
 
 @app.callback(
