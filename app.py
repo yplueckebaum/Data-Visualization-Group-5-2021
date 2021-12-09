@@ -30,72 +30,6 @@ print("-------------------> Loading data structures")
 start = datetime.datetime.now()
 country_codes = ['BR', 'CA', 'DE', 'FR', 'GB', 'IN', 'JP', 'KR', 'MX', 'RU', 'US']
 
-category_ids_to_names_dict = {1: "Film & Animation",
-                              2: "Autos & Vehicles",
-                              10: "Music",
-                              15: "Pets & Animals",
-                              17: "Sports",
-                              18: "Short Movies",
-                              19: "Travel & Events",
-                              20: "Gaming",
-                              21: "Videoblogging",
-                              22: "People & Blogs",
-                              23: "Comedy",
-                              24: "Entertainment",
-                              25: "News & Politics",
-                              26: "Howto & Style",
-                              27: "Education",
-                              28: "Science & Technology",
-                              29: "Nonprofits & Activism",
-                              30: "Movies",
-                              31: "Anime/Animation",
-                              32: "Action/Adventure",
-                              33: "Classics",
-                              34: "Comedy",
-                              35: "Documentary",
-                              36: "Drama",
-                              37: "Family",
-                              38: "Foreign",
-                              39: "Horror",
-                              40: "Sci-Fi/Fantasy",
-                              41: "Thriller",
-                              42: "Shorts",
-                              43: "Shows",
-                              44: "Trailers"}
-
-category_names_to_ids_dict = {"Film & Animation": 1,
-                              "Autos & Vehicles": 2,
-                              "Music": 10,
-                              "Pets & Animals": 15,
-                              "Sports": 17,
-                              "Short Movies": 18,
-                              "Travel & Events": 19,
-                              "Gaming": 20,
-                              "Videoblogging": 21,
-                              "People & Blogs": 22,
-                              "Comedy": 23,
-                              "Entertainment": 24,
-                              "News & Politics": 25,
-                              "Howto & Style": 26,
-                              "Education": 27,
-                              "Science & Technology": 28,
-                              "Nonprofits & Activism": 29,
-                              "Movies": 30,
-                              "Anime/Animation": 31,
-                              "Action/Adventure": 32,
-                              "Classics": 33,
-                              "Comedy": 34,
-                              "Documentary": 35,
-                              "Drama": 36,
-                              "Family": 37,
-                              "Foreign": 38,
-                              "Horror": 39,
-                              "Sci-Fi/Fantasy": 40,
-                              "Thriller": 41,
-                              "Shorts": 42,
-                              "Shows": 43,
-                              "Trailers": 44}
-
 end = datetime.datetime.now()
 print("It took " + str((end - start).total_seconds() * 1000) + " miliseconds to load the data structures.")
 
@@ -225,7 +159,7 @@ controls = dbc.FormGroup(
         dcc.Dropdown(
             id="countries-drop-down",
             options=country_list,
-            value=['BR'],
+            value=['GB'],
             multi=True
         ),
         html.P('Categories', style={
@@ -445,6 +379,9 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
     if date_lower[0:10] == min_date_string[0:10] and date_upper[0:10] == max_date_string[0:10]:
         date_lower = df.trending_date.min()
         date_upper = df.trending_date.max()
+
+    date_lower_string = str(date_lower)
+    date_upper_string = str(date_upper)
     print("Callback for stacked area chart has been called")
     ctx = dash.callback_context
 
@@ -492,7 +429,7 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
                 name=categories,
                 line=dict(width=0.5, color=available_colors[(color_count - 1) % 12]),
                 stackgroup='one'  # define stack group
-                # groupnorm='percent' # sets the normalization for the sum of the stackgroup
+                #groupnorm='percent' # sets the normalization for the sum of the stackgroup
             ))
 
         fig.update_layout(
@@ -508,7 +445,7 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
         if timeInput == 'Days':
             range_array = [date_lower, date_upper]
         else:
-            range_array = [pd.to_datetime(min_date_string[0:7] + "-01 00:00:00+00:00"), pd.to_datetime(max_date_string[0:7] + "-01 00:00:00+00:00")]
+            range_array = [pd.to_datetime(date_lower_string[0:7] + "-01 00:00:00+00:00"), pd.to_datetime(date_upper_string[0:7] + "-01 00:00:00+00:00")]
 
         fig.update_xaxes(
             title_text='Date',
@@ -520,7 +457,6 @@ def update_graph(regionInput, timeInput, date_string_from_hidden_rangeslider_div
                 autorange=True,
                 #range=range_array
             ),
-            dtick="M1",
             type="date"
         )
 
