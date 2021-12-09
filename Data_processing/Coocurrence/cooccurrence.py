@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
+import datetime
 import pickle
 
 import networkx as nx
@@ -30,7 +31,11 @@ class CoOccurrence:
         self.occurrence_max = None
 
     def setup(self, csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python",nrows=50) #todo dataset is cut for processing reasons
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python",
+                              nrows=50)  # todo dataset is cut for processing reasons
+        self.df = self.df.loc[(self.df.category_text.isin(["Gaming"])) & (self.df.region.isin(["GB"])) & (
+                pd.to_datetime(self.df.trending_date).dt.tz_localize(None) >= (
+            datetime.datetime(2021, 10, 1, 0, 0, 0, 0)))]
         self.data_len = self.df.shape[0]
         unique_tags = []
         for index, row in self.df.iterrows():
@@ -50,8 +55,7 @@ class CoOccurrence:
             self.co_occurrence_dok.clear()
             self.tags_occurrence_dict.clear()
         # THIS SETS LEN TO ZERO
-        if self.df.empty:
-            self.setup(csv_path=csv_path)
+        self.setup(csv_path=csv_path)
         self.dtype_co_occurrence = dtype_co_occurrence
         self.tags_occurrence_dict = {self.unique_tags[i]: 0 for i in range(0, len(self.unique_tags))}
         assert np.issubdtype(self.dtype_co_occurrence, np.integer)
@@ -76,9 +80,9 @@ class CoOccurrence:
                                                   create_using=nx.Graph)
 
     def generate_partition(self):
-        self.partition = community_louvain.best_partition(self.tag_graph,weight="weight")
-        #todo partition option
-        #self.partition = community_louvain.generate_dendrogram(self.tag_graph, weight='weight')
+        self.partition = community_louvain.best_partition(self.tag_graph, weight="weight")
+        # todo partition option
+        # self.partition = community_louvain.generate_dendrogram(self.tag_graph, weight='weight')
 
     def normalize_by_occurrence(self):
         return {k: v / self.occurrence_max for k, v in self.tags_occurrence_dict.items()}
@@ -96,14 +100,13 @@ class CoOccurrence:
 
     def import_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
-        #coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/" + co_occurrence_name + ".npz")
-        #self.co_occurrence_dok = coo_co_occurrence_matrix.todok(
+        # coo_co_occurrence_matrix = load_npz(co_occurrence_path + "/" + co_occurrence_name + ".npz")
+        # self.co_occurrence_dok = coo_co_occurrence_matrix.todok(
         #    copy=False)
 
         with open(occurrence_path + "/" + occurrence_name + '.pickle', 'rb') as handle:
             self.tags_occurrence_dict = pickle.load(handle)
         self.occurrence_max = max(self.tags_occurrence_dict.values())
-
 
     def export_occurrences(self, co_occurrence_path: str = ".", occurrence_path: str = ".",
                            co_occurrence_name="co-occurrence", occurrence_name="occurrence"):
