@@ -31,12 +31,12 @@ class CoOccurrence:
         self.occurrence_max = None
 
     def setup(self, csv_path: str = "."):
-        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python",
-                              nrows=50)  # todo dataset is cut for processing reasons
+        self.df = pd.read_csv(csv_path + "/processed_dataset.csv", engine="python")  # todo dataset is cut for processing reasons
         self.df = self.df.loc[(self.df.category_text.isin(["Gaming"])) & (self.df.region.isin(["GB"])) & (
                 pd.to_datetime(self.df.trending_date).dt.tz_localize(None) >= (
             datetime.datetime(2021, 10, 1, 0, 0, 0, 0)))]
         self.data_len = self.df.shape[0]
+        print(self.data_len)
         unique_tags = []
         for index, row in self.df.iterrows():
             if row['tagged']:

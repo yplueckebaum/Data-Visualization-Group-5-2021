@@ -744,16 +744,13 @@ def redraw_fig(selectedData, searchData, clickData):
 def selection_info(clickData):
     if clickData is not None:
         tag = clickData["points"][0]["customdata"]
-        most_viewed = list(cooccurrence2.df.loc[list(
-            [tag in cooccurrence2.df["tags"][i].split("|") for i in range(cooccurrence2.df.shape[0])]), ["video_id",
-                                                                                                       "view_count"]].sort_values(
-            "view_count")["video_id"])
+        most_viewed = list(cooccurrence2.df.loc[list([tag in cooccurrence2.df["tags"][i].split("|") for i in [index for index,_ in cooccurrence2.df.iterrows()]]), ["video_id","view_count"]].sort_values("view_count")["video_id"])
         top_5 = most_viewed if len(most_viewed) < 5 else most_viewed[:5]
-        output = ["https://www.youtube.com/watch?v=" + elem for elem in top_5]
+        output = ["https://www.youtube.com/watch?v=" + elem + "\n" for elem in top_5]
         return output
     else:
         return ""
-
+#tag in cooccurrence2.df["tags"][i].split("|") for i in range(cooccurrence2.df.shape[0])
 
 print("-------------------> The application is running")
 already_loaded_dataset_and_set_up_variables = True
